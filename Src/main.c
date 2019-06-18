@@ -85,6 +85,9 @@ uint8_t MemsID = 0;
 volatile uint32_t AUDIODataReady = 0, AUDIOBuffOffset = 0;
 uint32_t FFTReady = 0;
 
+const float32_t firCoeffs32[NUM_TAPS] = {-0.0018225230f, -0.0015879294f, +0.0000000000f, +0.0036977508f, +0.0080754303f, +0.0085302217f, -0.0000000000f, -0.0173976984f, -0.0341458607f, -0.0333591565f, +0.0000000000f, +0.0676308395f, +0.1522061835f, +0.2229246956f, +0.2504960933f, +0.2229246956f, +0.1522061835f, +0.0676308395f, +0.0000000000f, -0.0333591565f, -0.0341458607f, -0.0173976984f, -0.0000000000f, +0.0085302217f, +0.0080754303f, +0.0036977508f, +0.0000000000f, -0.0015879294f, -0.0018225230f};
+
+
 static float32_t peq1_coeffsA[5] = { 1.0, -1.0, 0, 0.95, 0 };
 
 static float32_t peq1_state[2];
@@ -127,7 +130,7 @@ int main(void) {
 	/* MCU Configuration----------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+	fft_ws2812_Init();
 
 	/* USER CODE BEGIN Init */
 
@@ -141,10 +144,10 @@ int main(void) {
 	/* USER CODE END SysInit */
 
 	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_I2C1_Init();
-	MX_I2S3_Init();
-	MX_SPI1_Init();
+	//MX_GPIO_Init();
+	//MX_I2C1_Init();
+	//MX_I2S3_Init();
+	//MX_SPI1_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
