@@ -1,0 +1,75 @@
+
+#ifndef VISEFFECT_H_
+#define VISEFFECT_H_
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* USER CODE BEGIN Includes */
+#define FFT_LEN 128
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <arm_math.h>
+#include "../Src/ws2812b/ws2812b.h"
+
+extern uint8_t * getBufferItem();
+
+
+
+
+// Helper defines
+#define newColor(r, g, b) (((uint32_t)(r) << 16) | ((uint32_t)(g) <<  8) | (b))
+#define Red(c) ((uint8_t)((c >> 16) & 0xFF))
+#define Green(c) ((uint8_t)((c >> 8) & 0xFF))
+#define Blue(c) ((uint8_t)(c & 0xFF))
+
+uint16_t s;
+void visInit();
+uint8_t visHandle();
+uint8_t setBuffer_BaseAddress(uint8_t,uint8_t *,uint32_t);  //give base address  (buffer number,base address,buffer length)
+void visInit();
+uint8_t generate_rgb(float32_t *,float32_t * ,uint32_t);
+
+
+
+
+
+
+uint8_t i_test;
+
+extern uint8_t frame_Buffer[3 * (FFT_LEN / 2)];
+extern uint8_t frame_Buffer2[3 * (FFT_LEN / 2)];
+
+//extern volatile WS2812_Struct ws2812b;
+
+
+
+typedef struct {
+	float32_t r;// a fraction between 0 and 1
+	float32_t g;// a fraction between 0 and 1
+	float32_t b;// a fraction between 0 and 1
+}rgb;
+
+typedef struct {
+	float32_t h;// angle in degrees
+	float32_t s;// a fraction between 0 and 1
+	float32_t v;// a fraction between 0 and 1
+}hsv;
+
+
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif /* VISEFFECT_H_ */
+
+
+
