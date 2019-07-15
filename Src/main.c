@@ -47,7 +47,7 @@
  */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h"
+#include "stm32f4xx_hal_conf.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
 #include "visEffect.h"
@@ -57,23 +57,20 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+//I2C_HandleTypeDef hi2c1;
 
 I2S_HandleTypeDef hi2s3;
 
 SPI_HandleTypeDef hspi1;
 
-
 I2S_HandleTypeDef hAudioInI2s;
 
 TIM_HandleTypeDef TIM_Handle;
 
-
-
 filter_typedef FUNCTION = RFFT;
 
-uint32_t ITCounter = 0; //  buffer position
-uint16_t buff_pos = 0;
+volatile uint32_t ITCounter = 0; //  buffer position
+volatile uint16_t buff_pos = 0;
 
 float32_t F_Sum = 0.0f;
 float32_t max_Value = 0.0;
@@ -83,30 +80,22 @@ uint32_t max_Index = 0;
 uint8_t MemsID = 0;
 /* Buffer Status */
 volatile uint32_t AUDIODataReady = 0, AUDIOBuffOffset = 0;
-uint32_t FFTReady = 0;
+volatile uint32_t FFT_Ready = 0;
 
-const float32_t firCoeffs32[NUM_TAPS] = {-0.0018225230f, -0.0015879294f, +0.0000000000f, +0.0036977508f, +0.0080754303f, +0.0085302217f, -0.0000000000f, -0.0173976984f, -0.0341458607f, -0.0333591565f, +0.0000000000f, +0.0676308395f, +0.1522061835f, +0.2229246956f, +0.2504960933f, +0.2229246956f, +0.1522061835f, +0.0676308395f, +0.0000000000f, -0.0333591565f, -0.0341458607f, -0.0173976984f, -0.0000000000f, +0.0085302217f, +0.0080754303f, +0.0036977508f, +0.0000000000f, -0.0015879294f, -0.0018225230f};
-
-
-static float32_t peq1_coeffsA[5] = { 1.0, -1.0, 0, 0.95, 0 };
-
-static float32_t peq1_state[2];
-/* Two filter instances so we can use one while calculating the coefficients of the other */
-static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
-		peq1_coeffsA };
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE END PV */
 
+float32_t FFT_Input[FFT_LEN]; //
+float32_t FFT_Bins[FFT_LEN];
+float32_t FFT_MagBuf[FFT_LEN / 2]; //
+float32_t FFT_MagBuf_IIR[FFT_LEN / 2]; //
+float32_t FIR_Buf[FFT_LEN];
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_I2S3_Init(void);
-static void MX_SPI1_Init(void);
-void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -123,46 +112,22 @@ void MX_USB_HOST_Process(void);
  * @retval None
  */
 int main(void) {
-	/* USER CODE BEGIN 1 */
-
-	/* USER CODE END 1 */
-
-	/* MCU Configuration----------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	fft_ws2812_Init();
 
-	/* USER CODE BEGIN Init */
-
-	/* USER CODE END Init */
-
-	/* Configure the system clock */
-	SystemClock_Config();
-
-	/* USER CODE BEGIN SysInit */
-
-	/* USER CODE END SysInit */
-
-	/* Initialize all configured peripherals */
-	//MX_GPIO_Init();
-	//MX_I2C1_Init();
-	//MX_I2S3_Init();
-	//MX_SPI1_Init();
-	/* USER CODE BEGIN 2 */
-
-	/* USER CODE END 2 */
-
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
 	while (1) {
+		if (AUDIODataReady == 1) {
+			StartRFFTTask();
+		}
+		if (FFT_Ready) {
+			generate_rgb(&FFT_Bins[0], &FFT_MagBuf_IIR[0], (FFT_LEN / 2));
+		}
 
-		/* USER CODE END WHILE */
-
-		/* USER CODE BEGIN 3 */
 
 	}
+	return 1;
 	/* USER CODE END 3 */
-
 }
 
 /**
@@ -228,191 +193,14 @@ void SystemClock_Config(void) {
 	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
-/* I2C1 init function */
-static void MX_I2C1_Init(void) {
-
-	hi2c1.Instance = I2C1;
-	hi2c1.Init.ClockSpeed = 100000;
-	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	hi2c1.Init.OwnAddress1 = 0;
-	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	hi2c1.Init.OwnAddress2 = 0;
-	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-}
-
-/* I2S3 init function */
-static void MX_I2S3_Init(void) {
-
-	hi2s3.Instance = SPI3;
-	hi2s3.Init.Mode = I2S_MODE_MASTER_TX;
-	hi2s3.Init.Standard = I2S_STANDARD_PHILIPS;
-	hi2s3.Init.DataFormat = I2S_DATAFORMAT_16B;
-	hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_ENABLE;
-	hi2s3.Init.AudioFreq = I2S_AUDIOFREQ_96K;
-	hi2s3.Init.CPOL = I2S_CPOL_LOW;
-	hi2s3.Init.ClockSource = I2S_CLOCK_PLL;
-	hi2s3.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_DISABLE;
-	if (HAL_I2S_Init(&hi2s3) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-}
-
-/* SPI1 init function */
-static void MX_SPI1_Init(void) {
-
-	/* SPI1 parameter configuration*/
-	hspi1.Instance = SPI1;
-	hspi1.Init.Mode = SPI_MODE_MASTER;
-	hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-	hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-	hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-	hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-	hspi1.Init.NSS = SPI_NSS_SOFT;
-	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-	hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-	hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-	hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-	hspi1.Init.CRCPolynomial = 10;
-	if (HAL_SPI_Init(&hspi1) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-}
-
-/** Configure pins as 
- * Analog
- * Input
- * Output
- * EVENT_OUT
- * EXTI
- PC3   ------> I2S2_SD
- PB10   ------> I2S2_CK
- */
-static void MX_GPIO_Init(void) {
-
-	GPIO_InitTypeDef GPIO_InitStruct;
-
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOE_CLK_ENABLE()
-	;
-	__HAL_RCC_GPIOC_CLK_ENABLE()
-	;
-	__HAL_RCC_GPIOH_CLK_ENABLE()
-	;
-	__HAL_RCC_GPIOA_CLK_ENABLE()
-	;
-	__HAL_RCC_GPIOB_CLK_ENABLE()
-	;
-	__HAL_RCC_GPIOD_CLK_ENABLE()
-	;
-
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(CS_I2C_SPI_GPIO_Port, CS_I2C_SPI_Pin, GPIO_PIN_RESET);
-
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin,
-			GPIO_PIN_SET);
-
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOD,
-			LD4_Pin | LD3_Pin | LD5_Pin | LD6_Pin | Audio_RST_Pin,
-			GPIO_PIN_RESET);
-
-	/*Configure GPIO pin : CS_I2C_SPI_Pin */
-	GPIO_InitStruct.Pin = CS_I2C_SPI_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(CS_I2C_SPI_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : OTG_FS_PowerSwitchOn_Pin */
-	GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(OTG_FS_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : PDM_OUT_Pin */
-	GPIO_InitStruct.Pin = PDM_OUT_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-	HAL_GPIO_Init(PDM_OUT_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : B1_Pin */
-	GPIO_InitStruct.Pin = B1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : BOOT1_Pin */
-	GPIO_InitStruct.Pin = BOOT1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(BOOT1_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : CLK_IN_Pin */
-	GPIO_InitStruct.Pin = CLK_IN_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-	HAL_GPIO_Init(CLK_IN_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : LD4_Pin LD3_Pin LD5_Pin LD6_Pin
-	 Audio_RST_Pin */
-	GPIO_InitStruct.Pin = LD4_Pin | LD3_Pin | LD5_Pin | LD6_Pin | Audio_RST_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
-	GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(OTG_FS_OverCurrent_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : MEMS_INT2_Pin */
-	GPIO_InitStruct.Pin = MEMS_INT2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(MEMS_INT2_GPIO_Port, &GPIO_InitStruct);
-
-}
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
-
-/**
- * @brief  This function is executed in case of error occurrence.
- * @param  file: The file name as string.
- * @param  line: The line in file as a number.
- * @retval None
- */
-
-
-
-
 void fft_ws2812_Init() {
 
-
-
-	//sample_runs = 16;
+	sample_runs = 15;
 	enablefpu();
 	HAL_Init();
+	SystemClock_Config();
 	visInit();
 	timer_setup();
-	//sample_runs = 16;
 	BSP_LED_Init(LED4);
 	BSP_LED_Init(LED5);
 	BSP_LED_Init(LED6);
@@ -421,29 +209,22 @@ void fft_ws2812_Init() {
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
 	DEFAULT_AUDIO_IN_CHANNEL_NBR);
-
 	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
-	//__enable_irq();
 }
 
-
-
-float32_t StartRFFTTask() {
+uint8_t StartRFFTTask() {
 
 	static float32_t maxValue = 0.0;
 	static uint32_t testIndex;
-	//DBGMCU_Config(DBGMCU_SLEEP | DBGMCU_STOP | DBGMCU_STANDBY, ENABLE);
 
 	BSP_LED_Toggle(LED5);
-	arm_biquad_cascade_df1_f32(&peq1_instanceA, &FFT_Input[0], &BQC_Buf[0],
-	FFT_LEN);
-	arm_rfft_fast_f32(&rfft_s, &BQC_Buf[0], &FFT_Bins[0], 0);
+	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
-
 	AUDIODataReady = 0;
-	arm_max_f32(&FFT_Bins[0], FFT_LEN, &maxValue, &testIndex);
-	return maxValue;
+	FFT_Ready = 1;
+	//arm_max_f32(&FFT_Bins[0], FFT_LEN, &maxValue, &testIndex);
+	return 1;
 
 }
 
@@ -538,7 +319,8 @@ void enablefpu() {
 int timer_setup(void)
 
 {
-	__TIM4_CLK_ENABLE();
+	__TIM4_CLK_ENABLE()
+	;
 	TIM_Handle.Init.Prescaler = 42000;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 80;
@@ -558,10 +340,13 @@ void TIM4_IRQHandler(void)
 			{
 		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
 			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
-	//		visHandle();
+			visHandle();
 		}
 	}
 }
+
+
+
 
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;
@@ -603,8 +388,6 @@ float32_t *Hanning(uint32_t N, uint8_t itype) {
 	}
 	return (&hann_window[0]);
 }
-
-
 
 void BSP_AUDIO_IN_Error_Callback(void) {
 	Error_Handler();
@@ -701,10 +484,6 @@ void PendSV_Handler(void) {
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);
 }
-
-
-
-
 
 void _Error_Handler(char *file, int line) {
 	/* USER CODE BEGIN Error_Handler_Debug */

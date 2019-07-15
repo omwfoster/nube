@@ -8,5 +8,5 @@ l3gd20.c:234:6:L3GD20_EnableIT	16	static
 l3gd20.c:264:6:L3GD20_DisableIT	16	static
 l3gd20.c:291:6:L3GD20_FilterConfig	16	static
 l3gd20.c:315:6:L3GD20_FilterCmd	16	static
-l3gd20.c:350:6:L3GD20_ReadXYZAngRate	48	static
+l3gd20.c:350:6:L3GD20_ReadXYZAngRate	32	static
 l3gd20.c:335:9:L3GD20_GetDataStatus	16	static

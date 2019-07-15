@@ -195,7 +195,7 @@
 uint16_t InternalBuffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFAULT_AUDIO_IN_FREQ/16000 *DEFAULT_AUDIO_IN_CHANNEL_NBR
 uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
 float32_t float_array[PCM_OUT_SIZE];
-static const uint32_t sample_runs = 15;
+uint32_t sample_runs;
 
 float32_t FFT_Input[FFT_LEN]; //
 float32_t FFT_Bins[FFT_LEN];
@@ -289,7 +289,7 @@ float32_t *hann_ptr;
 
 void PCM_to_Float(uint16_t *, float32_t *, uint16_t);
 void StartFIRTask();
-float32_t StartRFFTTask();
+uint8_t StartRFFTTask();
 void enablefpu();
 void clean_input_buffers();
 void clean_output_buffers();

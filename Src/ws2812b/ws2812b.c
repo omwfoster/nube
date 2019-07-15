@@ -1,6 +1,8 @@
 /*
 
  WS2812B CPU and memory efficient library
+ just another electronics blog.
+
 
  Date: 28.9.2016
 
@@ -22,16 +24,25 @@ extern "C"
 #include "stm32f4xx_hal.h"
 #include "ws2812b.h"
 
+DMA_HandleTypeDef dmaUpdate;
+DMA_HandleTypeDef dmaCC1;
+DMA_HandleTypeDef dmaCC2;
 
+uint16_t ws2812bDmaBitBuffer[24 * FFT_LEN /2];       // DMA output array buffer.
 
-//extern WS2812_Struct ws2812b;
+#define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
 
 // Define source arrays for my DMAs
 uint32_t WS2812_IO_High[] = { WS2812B_PINS };
 uint32_t WS2812_IO_Low[] = { WS2812B_PINS << 16 };
 
-// WS2812 framebuffer - buffer for 2 LEDs - two times 24 bits
-uint16_t ws2812bDmaBitBuffer[24 * 64];
+WS2812_Struct * ptr_ws2812b_struct;
+WS2812_Struct global_WS2812_Struct;
+WS2812_BufferItem * ptr_active_output;
+WS2812_BufferItem * ptr_active_input;
+
+uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
+uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
 
 // Gamma correction table
 const uint8_t gammaTable[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -132,13 +143,14 @@ static void TIM1_init(void) {
 
 }
 
+
 DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
-#define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
+
+
 
 uint32_t dummy;
-
 static void DMA2_init(void) {
 
 	// TIM2 Update event
@@ -184,6 +196,7 @@ static void DMA2_init(void) {
 	HAL_DMA_Start(&dmaCC1, (uint32_t) ws2812bDmaBitBuffer,
 			(uint32_t) (&WS2812B_PORT->BSRR) + 2, BUFFER_SIZE); //BRR
 
+
 	// TIM2 CC2 event
 	dmaCC2.Init.Direction = DMA_MEMORY_TO_PERIPH;
 	dmaCC2.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -211,75 +224,43 @@ static void DMA2_init(void) {
 	HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
 	HAL_DMA_Start_IT(&dmaCC2, (uint32_t) WS2812_IO_Low,
 			(uint32_t) &WS2812B_PORT->BSRR, BUFFER_SIZE);
-	//HAL_DMA_Start_IT(&dmaCC2, (uint32_t)WS2812_IO_Low, (uint32_t)&dummy, BUFFER_SIZE);
-
-	//__HAL_LINKDMA(&Tim2Handle, hdma,  &dmaCC2);
-
 }
 
-
-void ws2812b_init(uint8_t * buf1, uint8_t* buf2, uint16_t buf_len) {
+void ws2812b_init() {
 	ws2812b_gpio_init();
 
 	DMA2_init();
 	TIM1_init();
-	ws2812b.item[0].channel = 0;
-	ws2812b.item[1].channel = 0;
-	ws2812b.item[0].buf_state = NOT_IN_USE;
-	ws2812b.item[1].buf_state = NOT_IN_USE;
-	ws2812b.item[0].frameBufferCounter = 0;
-	ws2812b.item[1].frameBufferCounter = 0;
-	ws2812b.item[0].frameBufferPointer = buf1;
-	ws2812b.item[1].frameBufferPointer = buf2;
-	ws2812b.item[0].frameBufferSize = buf_len;
-	ws2812b.item[1].frameBufferSize = buf_len;
+	global_WS2812_Struct.item[0].channel = 0;
+	global_WS2812_Struct.item[1].channel = 0;
+	global_WS2812_Struct.item[0].WS2812_buf_state = NOT_IN_USE;
+	global_WS2812_Struct.item[1].WS2812_buf_state = NOT_IN_USE;
+	global_WS2812_Struct.item[0].frameBufferCounter = 0;
+	global_WS2812_Struct.item[1].frameBufferCounter = 0;
+	global_WS2812_Struct.item[0].frameBufferPointer = &frame_Buffer1[0];
+	global_WS2812_Struct.item[1].frameBufferPointer = &frame_Buffer2[0];
+	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN / 2));
+	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN / 2));
+	global_WS2812_Struct.item[0].startTransfer = 0;
+	global_WS2812_Struct.item[1].startTransfer = 0;
 	//active_ws2812b_item = &ws2812b.item[0];
 	// Need to start the first transfer
-	ws2812b.transferComplete = 1;
-	ws2812b.startTransfer = 0;
-}
+	global_WS2812_Struct.transferComplete = 1;
 
-static void loadNextFramebufferData(WS2812_BufferItem *bItem, uint32_t row) {
-
-	if (bItem->buf_state == READ_LOCKED) {
-
-		uint32_t r = bItem->frameBufferPointer[bItem->frameBufferCounter++];
-		uint32_t g = bItem->frameBufferPointer[bItem->frameBufferCounter++];
-		uint32_t b = bItem->frameBufferPointer[bItem->frameBufferCounter++];
-
-		ws2812b_set_pixel(bItem->channel, row, r, g, b);
-
-		if (bItem->frameBufferCounter == bItem->frameBufferSize) {
-			bItem->frameBufferCounter = 0;
-		}
-
-	}
 }
 
 // Transmit the framebuffer
-static void WS2812_sendbuf() {
+static void WS2812_sendbuf(WS2812_BufferItem * item_ptr) {
 	// transmission complete flag
 
-	if ((ws2812b.item[0].buf_state == BUFFER_FULL)
-			|| (ws2812b.item[0].buf_state == READ_LOCKED)) {
-		ws2812b.startTransfer = 1;
-		ws2812b.item[0].frameBufferCounter = 0;
-		ws2812b.item[0].buf_state = READ_LOCKED;
-		loadNextFramebufferData(&ws2812b.item[0], 0);
-		ws2812b_output = &ws2812b.item[0];
-		WS2812_sendbuf_helper();
-	} else if ((ws2812b.item[1].buf_state == BUFFER_FULL)
-			|| (ws2812b.item[1].buf_state == READ_LOCKED)) {
-		ws2812b.startTransfer = 1;
-		ws2812b.item[1].frameBufferCounter = 0;
-		ws2812b.item[1].buf_state = READ_LOCKED;
-		loadNextFramebufferData(&ws2812b.item[1], 0);
-		ws2812b_output = &ws2812b.item[1];
-		WS2812_sendbuf_helper();
-	}
+	item_ptr->WS2812_buf_state = READ_LOCKED;
+	item_ptr->frameBufferCounter = 0;
+	copy_to_BB(item_ptr);
+	WS2812_sendbuf_helper(item_ptr);
+
 }
 
-void WS2812_sendbuf_helper() {
+void WS2812_sendbuf_helper(WS2812_BufferItem * WS_ouput) {
 
 	// clear all DMA flags
 	__HAL_DMA_CLEAR_FLAG(&dmaUpdate,
@@ -293,7 +274,6 @@ void WS2812_sendbuf_helper() {
 	dmaUpdate.Instance->NDTR = BUFFER_SIZE;
 	dmaCC1.Instance->NDTR = BUFFER_SIZE;
 	dmaCC2.Instance->NDTR = BUFFER_SIZE;
-
 	// clear all TIM2 flags
 	__HAL_TIM_CLEAR_FLAG(&TIM1_handle,
 			TIM_FLAG_UPDATE | TIM_FLAG_CC1 | TIM_FLAG_CC2 | TIM_FLAG_CC3 | TIM_FLAG_CC4);
@@ -315,25 +295,12 @@ void WS2812_sendbuf_helper() {
 }
 
 void DMA_TransferError(DMA_HandleTypeDef *DmaHandle) {
-	volatile int i = 0;
-	i++;
+
 }
 
 void DMA_TransferHalfHandler(DMA_HandleTypeDef *DmaHandle) {
 
-	// Is this the last LED?
-	if (ws2812b.repeatCounter == WS2812B_NUMBER_OF_LEDS) {
 
-		// If this is the last pixel, set the next pixel value to zeros, because
-		// the DMA would not stop exactly at the last bit.
-		ws2812b_set_pixel(0, 0, 0, 0, 0);
-
-	} else {
-
-		loadNextFramebufferData(ws2812b_output, 0);
-	}
-
-	ws2812b.repeatCounter++;
 }
 
 void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
@@ -342,50 +309,49 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 	LED_ORANGE_PORT->BSRR = LED_ORANGE_PIN;
 #endif
 
-	if (ws2812b.repeatCounter == WS2812B_NUMBER_OF_LEDS) {
-		// Transfer of all LEDs is done, disable DMA but enable tiemr update IRQ to stop the 50us pulse
-		ws2812b.repeatCounter = 0;
+	// Stop timer
+	TIM1->CR1 &= ~TIM_CR1_CEN;
 
-		// Stop timer
-		TIM1->CR1 &= ~TIM_CR1_CEN;
+	// Disable DMA
+	__HAL_DMA_DISABLE(&dmaUpdate);
+	__HAL_DMA_DISABLE(&dmaCC1);
+	__HAL_DMA_DISABLE(&dmaCC2);
 
-		// Disable DMA
-		__HAL_DMA_DISABLE(&dmaUpdate);
-		__HAL_DMA_DISABLE(&dmaCC1);
-		__HAL_DMA_DISABLE(&dmaCC2);
+	// Disable the DMA requests
+	__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_UPDATE);
+	__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_CC1);
+	__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_CC2);
 
-		// Disable the DMA requests
-		__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_UPDATE);
-		__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_CC1);
-		__HAL_TIM_DISABLE_DMA(&TIM1_handle, TIM_DMA_CC2);
+	// Set 50us period for Treset pulse
+	//TIM2->PSC = 1000; // For this long period we need prescaler 1000
+	TIM1->ARR = timer_reset_pulse_period;
+	// Reset the timer
+	TIM1->CNT = 0;
 
-		// Set 50us period for Treset pulse
-		//TIM2->PSC = 1000; // For this long period we need prescaler 1000
-		TIM1->ARR = timer_reset_pulse_period;
-		// Reset the timer
-		TIM1->CNT = 0;
+	// Generate an update event to reload the prescaler value immediately
+	TIM1->EGR = TIM_EGR_UG;
+	__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
 
-		// Generate an update event to reload the prescaler value immediately
-		TIM1->EGR = TIM_EGR_UG;
-		__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
+	// Enable TIM2 Update interrupt for 50us Treset signal
+	__HAL_TIM_ENABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
+	// Enable timer
+	TIM1->CR1 |= TIM_CR1_CEN;
 
-		// Enable TIM2 Update interrupt for 50us Treset signal
-		__HAL_TIM_ENABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
-		// Enable timer
-		TIM1->CR1 |= TIM_CR1_CEN;
+	// Manually set outputs to low to generate 50us reset impulse
+	WS2812B_PORT->BSRR = WS2812_IO_Low[0];
+	//READ_ws2812b_item->buf_state = NOT_IN_USE;
+	global_WS2812_Struct.transferComplete = 1;
+	global_WS2812_Struct.item[0].transferComplete = 1;
+	global_WS2812_Struct.item[1].transferComplete = 1;
 
-		// Manually set outputs to low to generate 50us reset impulse
-		WS2812B_PORT->BSRR = WS2812_IO_Low[0];
-		//READ_ws2812b_item->buf_state = NOT_IN_USE;
-		ws2812b.transferComplete = 1;
-		ws2812b_output->buf_state = NOT_IN_USE;
-		ws2812b_output = NULL;
-		//swap_buffer();
-	} else {
-
-		loadNextFramebufferData(ws2812b_output, 0);
-		ws2812b.repeatCounter++;
-
+	if (global_WS2812_Struct.item[0].WS2812_buf_state == READ_LOCKED) {
+		global_WS2812_Struct.item[0].WS2812_buf_state = NOT_IN_USE;
+		global_WS2812_Struct.item[0].startTransfer = 0;
+		global_WS2812_Struct.item[0].transferComplete = 1;
+	} else if (global_WS2812_Struct.item[1].WS2812_buf_state == READ_LOCKED) {
+		global_WS2812_Struct.item[1].WS2812_buf_state = NOT_IN_USE;
+		global_WS2812_Struct.item[1].startTransfer = 0;
+		global_WS2812_Struct.item[1].transferComplete = 1;
 	}
 
 #if defined(LED_ORANGE_PORT)
@@ -410,10 +376,29 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 }
 
 // TIM2 Interrupt Handler gets executed on every TIM2 Update if enabled
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
 
-	ws2812b.timerPeriodCounter = 0;
-	TIM1->CR1 = 0; // disable timer
+	// I have to wait 50us to generate Treset signal
+	if (global_WS2812_Struct.timerPeriodCounter < (uint8_t)WS2812_RESET_PERIOD)
+	{
+		// count the number of timer periods
+		global_WS2812_Struct.timerPeriodCounter++;
+	}
+	else
+	{
+		global_WS2812_Struct.timerPeriodCounter = 0;
+		__HAL_TIM_DISABLE(&TIM1_handle);
+		TIM1->CR1 = 0; // disable timer
+
+		// disable the TIM2 Update
+		__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
+		// set TransferComplete flag
+		global_WS2812_Struct.transferComplete = 1;
+	}
+
+	global_WS2812_Struct.timerPeriodCounter = 0;
+    TIM1->CR1 = 0; // disable timer
 
 	// disable the TIM2 Update IRQ
 	__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
@@ -425,200 +410,138 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	TIM1->EGR = TIM_EGR_UG;
 	__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
 
-	// set transfer_complete flag
-	ws2812b.transferComplete = 1;
-
-	//READ_ws2812b_item->buf_state = NOT_IN_USE;
+    // set transfer_complete flag
+    global_WS2812_Struct.transferComplete = 1;
 
 }
 
+void copy_to_BB(WS2812_BufferItem * WS_Buf) {
 
+	static uint16_t row = 0;
+	static uint32_t counter = 0;
+	static volatile uint8_t red;
+	static volatile uint8_t green;
+	static volatile uint8_t blue;
+	static uint8_t * rgb_ptr = 0;
+	rgb_ptr = WS_Buf->frameBufferPointer;
 
-void ws2812b_set_pixel(uint8_t row, uint16_t column, uint8_t red, uint8_t green,
-		uint8_t blue) {
+	for (counter = 1; counter < (FFT_LEN / 2); ++counter)
 
-	// Apply gamma
-	red = gammaTable[red];
-	green = gammaTable[green];
-	blue = gammaTable[blue];
-
-	uint32_t calcCol = (column * 24);
-	uint32_t invRed = ~red;
-	uint32_t invGreen = ~green;
-	uint32_t invBlue = ~blue;
-
-#if defined(SETPIX_1)
-	uint8_t i;
-	uint32_t calcClearRow = ~((0x01<<row) << 0);
-	for (i = 0; i < 8; i++)
 	{
-		// clear the data for pixel
+		red = *rgb_ptr;
+		green = *rgb_ptr++;
+		blue = *rgb_ptr++;
+		// Apply gamma
+	//	red = gammaTable[red];
+	//	green = gammaTable[green];
+	//	blue = gammaTable[blue];
+		uint32_t invRed = ~red;
+		uint32_t invGreen = ~green;
+		uint32_t invBlue = ~blue;
 
-		ws2812bDmaBitBuffer[(calcCol+i)] &= calcClearRow;
-		ws2812bDmaBitBuffer[(calcCol+8+i)] &= calcClearRow;
-		ws2812bDmaBitBuffer[(calcCol+16+i)] &= calcClearRow;
+		// Bitband optimisations with pure increments, 5us interrupts
+		uint32_t *bitBand = BITBAND_SRAM(&ws2812bDmaBitBuffer[counter * 24],
+				row);
 
-		// write new data for pixel
-		ws2812bDmaBitBuffer[(calcCol+i)] |= (((((invGreen)<<i) & 0x80)>>7)<<(row+0));
-		ws2812bDmaBitBuffer[(calcCol+8+i)] |= (((((invRed)<<i) & 0x80)>>7)<<(row+0));
-		ws2812bDmaBitBuffer[(calcCol+16+i)] |= (((((invBlue)<<i) & 0x80)>>7)<<(row+0));
+		*bitBand = (invGreen >> 7);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 6);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 5);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 4);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 3);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 2);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 1);
+		bitBand += 16;
+
+		*bitBand = (invGreen >> 0);
+		bitBand += 16;
+
+		// RED
+		*bitBand = (invRed >> 7);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 6);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 5);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 4);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 3);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 2);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 1);
+		bitBand += 16;
+
+		*bitBand = (invRed >> 0);
+		bitBand += 16;
+
+		// BLUE
+		*bitBand = (invBlue >> 7);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 6);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 5);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 4);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 3);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 2);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 1);
+		bitBand += 16;
+
+		*bitBand = (invBlue >> 0);
+		bitBand += 16;
 	}
-#elif defined(SETPIX_2)
-	uint8_t i;
-	for (i = 0; i < 8; i++)
-	{
-		// Set or clear the data for the pixel
 
-		if(((invGreen)<<i) & 0x80)
-		varSetBit(ws2812bDmaBitBuffer[(calcCol+i)], row);
-		else
-		varResetBit(ws2812bDmaBitBuffer[(calcCol+i)], row);
-
-		if(((invRed)<<i) & 0x80)
-		varSetBit(ws2812bDmaBitBuffer[(calcCol+8+i)], row);
-		else
-		varResetBit(ws2812bDmaBitBuffer[(calcCol+8+i)], row);
-
-		if(((invBlue)<<i) & 0x80)
-		varSetBit(ws2812bDmaBitBuffer[(calcCol+16+i)], row);
-		else
-		varResetBit(ws2812bDmaBitBuffer[(calcCol+16+i)], row);
-
-	}
-#elif defined(SETPIX_3)
-	ws2812bDmaBitBuffer[(calcCol+0)] |= (((((invGreen)<<0) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+0)] |= (((((invRed)<<0) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+0)] |= (((((invBlue)<<0) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+1)] |= (((((invGreen)<<1) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+1)] |= (((((invRed)<<1) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+1)] |= (((((invBlue)<<1) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+2)] |= (((((invGreen)<<2) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+2)] |= (((((invRed)<<2) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+2)] |= (((((invBlue)<<2) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+3)] |= (((((invGreen)<<3) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+3)] |= (((((invRed)<<3) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+3)] |= (((((invBlue)<<3) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+4)] |= (((((invGreen)<<4) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+4)] |= (((((invRed)<<4) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+4)] |= (((((invBlue)<<4) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+5)] |= (((((invGreen)<<5) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+5)] |= (((((invRed)<<5) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+5)] |= (((((invBlue)<<5) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+6)] |= (((((invGreen)<<6) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+6)] |= (((((invRed)<<6) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+6)] |= (((((invBlue)<<6) & 0x80)>>7)<<row);
-
-	ws2812bDmaBitBuffer[(calcCol+7)] |= (((((invGreen)<<7) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+8+7)] |= (((((invRed)<<7) & 0x80)>>7)<<row);
-	ws2812bDmaBitBuffer[(calcCol+16+7)] |= (((((invBlue)<<7) & 0x80)>>7)<<row);
-#elif defined(SETPIX_4)
-
-	// Bitband optimisations with pure increments, 5us interrupts
-	uint32_t *bitBand = BITBAND_SRAM(&ws2812bDmaBitBuffer[(calcCol)], row);
-
-	*bitBand = (invGreen >> 7);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 6);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 5);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 4);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 3);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 2);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 1);
-	bitBand += 16;
-
-	*bitBand = (invGreen >> 0);
-	bitBand += 16;
-
-	// RED
-	*bitBand = (invRed >> 7);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 6);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 5);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 4);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 3);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 2);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 1);
-	bitBand += 16;
-
-	*bitBand = (invRed >> 0);
-	bitBand += 16;
-
-	// BLUE
-	*bitBand = (invBlue >> 7);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 6);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 5);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 4);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 3);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 2);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 1);
-	bitBand += 16;
-
-	*bitBand = (invBlue >> 0);
-	bitBand += 16;
-
-#endif
 }
-
 
 void ws2812b_handle() {
-	if (ws2812b.startTransfer) {
-		ws2812b.startTransfer = 0;
-		WS2812_sendbuf();
+
+	WS2812_BufferItem * bf_ptr1;
+	static  buf_state bs = BUFFER_FULL;
+	bf_ptr1 = ws2812b_getBufferItem(bs);
+
+	if (bf_ptr1 != NULL) {
+		WS2812_sendbuf(bf_ptr1);
 	}
 
 }
 
-uint8_t * ws2812b_getBufferItem() {
+WS2812_BufferItem * ws2812b_getBufferItem(buf_state status) {
+	if (global_WS2812_Struct.item[0].WS2812_buf_state == status) {
 
-	if (ws2812b.item[0].buf_state == NOT_IN_USE) {
-		ws2812b.item[0].buf_state = WRITE_LOCKED;
-		return ws2812b.item[0].frameBufferPointer;
-	} else if (ws2812b.item[1].buf_state == NOT_IN_USE) {
-		ws2812b.item[1].buf_state = WRITE_LOCKED;
-		return ws2812b.item[1].frameBufferPointer;
-	} else {
-		return NULL;
+		return &global_WS2812_Struct.item[0];
 	}
+	if (global_WS2812_Struct.item[1].WS2812_buf_state == status) {
+
+		return &global_WS2812_Struct.item[1];
+	}
+	return NULL;
 
 }
 

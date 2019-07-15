@@ -16,8 +16,11 @@ extern "C" {
 #include <arm_math.h>
 #include "../Src/ws2812b/ws2812b.h"
 
-extern uint8_t * getBufferItem();
 
+WS2812_BufferItem * ws_item_ptr;
+extern WS2812_BufferItem * getBufferItem(uint8_t status);
+extern uint8_t frame_Buffer[];
+extern uint8_t frame_Buffer2[];
 
 
 
@@ -34,17 +37,6 @@ uint8_t setBuffer_BaseAddress(uint8_t,uint8_t *,uint32_t);  //give base address 
 void visInit();
 uint8_t generate_rgb(float32_t *,float32_t * ,uint32_t);
 
-
-
-
-
-
-uint8_t i_test;
-
-extern uint8_t frame_Buffer[3 * (FFT_LEN / 2)];
-extern uint8_t frame_Buffer2[3 * (FFT_LEN / 2)];
-
-//extern volatile WS2812_Struct ws2812b;
 
 
 
