@@ -21,6 +21,7 @@ WS2812_BufferItem * ws_item_ptr;
 extern WS2812_BufferItem * getBufferItem(uint8_t status);
 extern uint8_t frame_Buffer[];
 extern uint8_t frame_Buffer2[];
+void fill_output_buffer();
 
 
 
@@ -32,7 +33,7 @@ extern uint8_t frame_Buffer2[];
 
 uint16_t s;
 void visInit();
-uint8_t visHandle();
+void visHandle();
 uint8_t setBuffer_BaseAddress(uint8_t,uint8_t *,uint32_t);  //give base address  (buffer number,base address,buffer length)
 void visInit();
 uint8_t generate_rgb(float32_t *,float32_t * ,uint32_t);

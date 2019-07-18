@@ -14,6 +14,7 @@ uint8_t w_pos;
 
 extern WS2812_BufferItem * ws2812b_getBufferItem(buf_state status);
 
+
 rgb hsv2rgb(hsv in) {
 	float32_t hh, p, q, t, ff;
 	uint16_t i;
@@ -77,18 +78,19 @@ void visInit() {
 	ws2812b_init();
 }
 
-uint8_t visHandle() {
+// check if there is a
 
-	static volatile WS2812_BufferItem *  bf;
-	bf  = ws2812b_getBufferItem(BUFFER_FULL);
-	if (bf != NULL  && bf->transferComplete == 0){
+void visHandle() {
+
 		ws2812b_handle();
-	}
-	return 0;
+
 
 }
 
+// Process FFT and populate  NOT_IN_USE ws2812 buffer
+
 uint8_t generate_rgb(float32_t * fft, float32_t * mag, uint32_t array_len) {
+
 
 	static float32_t f32_FFT_len = (float32_t) FFT_LEN;
 	static buf_state bs = NOT_IN_USE;
@@ -135,6 +137,22 @@ uint8_t generate_rgb(float32_t * fft, float32_t * mag, uint32_t array_len) {
 		return 1;
 	} else {
 		return 0;
+	}
+
+}
+
+void fill_output_buffer() {
+
+
+	// Transfer data from the processed FFT to
+	// Transfer to the Bit Buffer Area
+	static WS2812_BufferItem * buf_ptr;
+	static buf_state bs = BUFFER_FULL;
+	buf_ptr = (ws2812b_getBufferItem(bs));
+
+	if(buf_ptr != NULL)
+	{
+		BB_generator(buf_ptr);
 	}
 
 }

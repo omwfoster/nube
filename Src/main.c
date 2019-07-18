@@ -58,7 +58,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 //I2C_HandleTypeDef hi2c1;
-
 I2S_HandleTypeDef hi2s3;
 
 SPI_HandleTypeDef hspi1;
@@ -79,9 +78,7 @@ uint32_t max_Index = 0;
 /* Save MEMS ID */
 uint8_t MemsID = 0;
 /* Buffer Status */
-volatile uint32_t AUDIODataReady = 0, AUDIOBuffOffset = 0;
-volatile uint32_t FFT_Ready = 0;
-
+volatile uint32_t AUDIODataReady = 0, AUDIOBuffOffset = 0, FFT_Ready; RGB_Ready;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -117,14 +114,15 @@ int main(void) {
 	fft_ws2812_Init();
 
 	while (1) {
+
 		if (AUDIODataReady == 1) {
 			StartRFFTTask();
 		}
 		if (FFT_Ready) {
 			generate_rgb(&FFT_Bins[0], &FFT_MagBuf_IIR[0], (FFT_LEN / 2));
+			FFT_Ready = 0;
 		}
-
-
+			fill_output_buffer();
 	}
 	return 1;
 	/* USER CODE END 3 */
@@ -214,16 +212,12 @@ void fft_ws2812_Init() {
 
 uint8_t StartRFFTTask() {
 
-	static float32_t maxValue = 0.0;
-	static uint32_t testIndex;
-
 	BSP_LED_Toggle(LED5);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
 	AUDIODataReady = 0;
 	FFT_Ready = 1;
-	//arm_max_f32(&FFT_Bins[0], FFT_LEN, &maxValue, &testIndex);
 	return 1;
 
 }
@@ -344,9 +338,6 @@ void TIM4_IRQHandler(void)
 		}
 	}
 }
-
-
-
 
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;

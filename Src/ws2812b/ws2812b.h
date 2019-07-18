@@ -14,9 +14,8 @@
 // How many LEDs are in the series - only valid multiples by two
 #define WS2812B_NUMBER_OF_LEDS 64
 
-// Number of parallel output LED strips. Each has its own buffer.
-// Supports up to 16 outputs on a single GPIO port
-#define WS2812_BUFFER_COUNT 1
+
+#define WS2812_BUFFER_COUNT 2
 
 // Choose one of the bit-juggling setpixel implementation
 // *******************************************************
@@ -70,6 +69,17 @@ typedef struct WS2812_Struct
 } WS2812_Struct;
 
 
+
+
+typedef enum bb_buf_state {BB_HALF_TRANSFER,BB_TRANSFER_COMPLETE,BB_BUFFER_READY,BB_NOT_IN_USE} bb_buf_state;
+
+typedef struct BitBand_Buffer
+{
+	bb_buf_state bb_output_state;
+	uint16_t * ws2812bDmaBitBuffer;
+} BB_Struct;
+
+
 extern WS2812_Struct * ptr_ws2812b_struct;
 extern WS2812_Struct   BB;
 
@@ -89,10 +99,10 @@ WS2812_BufferItem * ws2812b_getBufferItem(buf_state status);
 #define varSetBit(var,bit) (Var_SetBit_BB((uint32_t)&var,bit))
 #define varResetBit(var,bit) (Var_ResetBit_BB((uint32_t)&var,bit))
 #define varGetBit(var,bit) (Var_GetBit_BB((uint32_t)&var,bit))
-void copy_to_BB(WS2812_BufferItem * WS_Buf);
+void BB_generator(WS2812_BufferItem * WS_Buf);
 
 
-void WS2812_sendbuf_helper(WS2812_BufferItem * WS_ouput_struct);
+void WS2812_sendbuf_helper();
 void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle);
 void DMA_TransferHalfHandler(DMA_HandleTypeDef *DmaHandle);
 void DMA_TransferError(DMA_HandleTypeDef *DmaHandle);

@@ -1,18 +1,3 @@
-/*
-
- WS2812B CPU and memory efficient library
- just another electronics blog.
-
-
- Date: 28.9.2016
-
- Author: Martin Hubacek
- http://www.martinhubacek.cz
- @hubmartin
-
- Licence: MIT License
-
- */
 
 #ifdef __cplusplus
 extern "C"
@@ -28,8 +13,6 @@ DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
 
-uint16_t ws2812bDmaBitBuffer[24 * FFT_LEN /2];       // DMA output array buffer.
-
 #define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
 
 // Define source arrays for my DMAs
@@ -41,6 +24,8 @@ WS2812_Struct global_WS2812_Struct;
 WS2812_BufferItem * ptr_active_output;
 WS2812_BufferItem * ptr_active_input;
 
+BB_Struct global_BB_Struct;
+uint16_t ws2812bDmaBitBuffer[24 * FFT_LEN / 2]; // DMA output array buffer.
 uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
 uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
 
@@ -143,14 +128,11 @@ static void TIM1_init(void) {
 
 }
 
-
 DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
 
 
-
-uint32_t dummy;
 static void DMA2_init(void) {
 
 	// TIM2 Update event
@@ -196,7 +178,6 @@ static void DMA2_init(void) {
 	HAL_DMA_Start(&dmaCC1, (uint32_t) ws2812bDmaBitBuffer,
 			(uint32_t) (&WS2812B_PORT->BSRR) + 2, BUFFER_SIZE); //BRR
 
-
 	// TIM2 CC2 event
 	dmaCC2.Init.Direction = DMA_MEMORY_TO_PERIPH;
 	dmaCC2.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -226,9 +207,9 @@ static void DMA2_init(void) {
 			(uint32_t) &WS2812B_PORT->BSRR, BUFFER_SIZE);
 }
 
+
 void ws2812b_init() {
 	ws2812b_gpio_init();
-
 	DMA2_init();
 	TIM1_init();
 	global_WS2812_Struct.item[0].channel = 0;
@@ -247,20 +228,13 @@ void ws2812b_init() {
 	// Need to start the first transfer
 	global_WS2812_Struct.transferComplete = 1;
 
-}
-
-// Transmit the framebuffer
-static void WS2812_sendbuf(WS2812_BufferItem * item_ptr) {
-	// transmission complete flag
-
-	item_ptr->WS2812_buf_state = READ_LOCKED;
-	item_ptr->frameBufferCounter = 0;
-	copy_to_BB(item_ptr);
-	WS2812_sendbuf_helper(item_ptr);
+	global_BB_Struct.bb_output_state = BB_NOT_IN_USE;
+	global_BB_Struct.ws2812bDmaBitBuffer = &ws2812bDmaBitBuffer;
 
 }
 
-void WS2812_sendbuf_helper(WS2812_BufferItem * WS_ouput) {
+
+void WS2812_sendbuf_helper() {
 
 	// clear all DMA flags
 	__HAL_DMA_CLEAR_FLAG(&dmaUpdate,
@@ -299,7 +273,6 @@ void DMA_TransferError(DMA_HandleTypeDef *DmaHandle) {
 }
 
 void DMA_TransferHalfHandler(DMA_HandleTypeDef *DmaHandle) {
-
 
 }
 
@@ -340,9 +313,6 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 	// Manually set outputs to low to generate 50us reset impulse
 	WS2812B_PORT->BSRR = WS2812_IO_Low[0];
 	//READ_ws2812b_item->buf_state = NOT_IN_USE;
-	global_WS2812_Struct.transferComplete = 1;
-	global_WS2812_Struct.item[0].transferComplete = 1;
-	global_WS2812_Struct.item[1].transferComplete = 1;
 
 	if (global_WS2812_Struct.item[0].WS2812_buf_state == READ_LOCKED) {
 		global_WS2812_Struct.item[0].WS2812_buf_state = NOT_IN_USE;
@@ -353,6 +323,8 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 		global_WS2812_Struct.item[1].startTransfer = 0;
 		global_WS2812_Struct.item[1].transferComplete = 1;
 	}
+
+	global_WS2812_Struct.transferComplete = 1;
 
 #if defined(LED_ORANGE_PORT)
 	LED_ORANGE_PORT->BSRR = LED_ORANGE_PIN << 16;
@@ -376,29 +348,11 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 }
 
 // TIM2 Interrupt Handler gets executed on every TIM2 Update if enabled
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-	// I have to wait 50us to generate Treset signal
-	if (global_WS2812_Struct.timerPeriodCounter < (uint8_t)WS2812_RESET_PERIOD)
-	{
-		// count the number of timer periods
-		global_WS2812_Struct.timerPeriodCounter++;
-	}
-	else
-	{
-		global_WS2812_Struct.timerPeriodCounter = 0;
-		__HAL_TIM_DISABLE(&TIM1_handle);
-		TIM1->CR1 = 0; // disable timer
-
-		// disable the TIM2 Update
-		__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
-		// set TransferComplete flag
-		global_WS2812_Struct.transferComplete = 1;
-	}
 
 	global_WS2812_Struct.timerPeriodCounter = 0;
-    TIM1->CR1 = 0; // disable timer
+	TIM1->CR1 = 0; // disable timer
 
 	// disable the TIM2 Update IRQ
 	__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
@@ -410,125 +364,154 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	TIM1->EGR = TIM_EGR_UG;
 	__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
 
-    // set transfer_complete flag
-    global_WS2812_Struct.transferComplete = 1;
+	// set transfer_complete flag
+	global_WS2812_Struct.transferComplete = 1;
 
 }
 
-void copy_to_BB(WS2812_BufferItem * WS_Buf) {
+void BB_generator(WS2812_BufferItem * WS_Buf) {
 
-	static uint16_t row = 0;
-	static uint32_t counter = 0;
-	static volatile uint8_t red;
-	static volatile uint8_t green;
-	static volatile uint8_t blue;
-	static uint8_t * rgb_ptr = 0;
-	rgb_ptr = WS_Buf->frameBufferPointer;
+	if ((global_BB_Struct.bb_output_state) != BB_NOT_IN_USE) {
+		return;
+	} else {
+		static uint16_t row = 0;
+		static uint32_t counter = 0;
+		static uint8_t red;
+		static uint8_t green;
+		static uint8_t blue;
+		static uint8_t * rgb_ptr = 0;
+		rgb_ptr = WS_Buf->frameBufferPointer;
+		uint32_t volatile *bitBand = BITBAND_SRAM(&global_BB_Struct.ws2812bDmaBitBuffer, row);
+		uint32_t volatile * bb_ptr;
+		bb_ptr = bitBand;
 
-	for (counter = 1; counter < (FFT_LEN / 2); ++counter)
+		for (counter = 1; counter < (FFT_LEN / 2); ++counter)
 
-	{
-		red = *rgb_ptr;
-		green = *rgb_ptr++;
-		blue = *rgb_ptr++;
-		// Apply gamma
-	//	red = gammaTable[red];
-	//	green = gammaTable[green];
-	//	blue = gammaTable[blue];
-		uint32_t invRed = ~red;
-		uint32_t invGreen = ~green;
-		uint32_t invBlue = ~blue;
+		{
+			red = *rgb_ptr;
+			green = *rgb_ptr++;
+			blue = *rgb_ptr++;
+			// Apply gamma
+			//	red = gammaTable[red];
+			//	green = gammaTable[green];
+			//	blue = gammaTable[blue];
+			uint32_t invRed = ~red;
+			uint32_t invGreen = ~green;
+			uint32_t invBlue = ~blue;
 
-		// Bitband optimisations with pure increments, 5us interrupts
-		uint32_t *bitBand = BITBAND_SRAM(&ws2812bDmaBitBuffer[counter * 24],
-				row);
+			// Bitband optimisations with pure increments, 5us interrupts
 
-		*bitBand = (invGreen >> 7);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 7);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 6);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 6);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 5);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 5);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 4);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 4);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 3);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 3);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 2);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 2);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 1);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 1);
+			bb_ptr += 16;
 
-		*bitBand = (invGreen >> 0);
-		bitBand += 16;
+			*bb_ptr = (invGreen >> 0);
+			bb_ptr += 16;
 
-		// RED
-		*bitBand = (invRed >> 7);
-		bitBand += 16;
+			// RED
+			*bb_ptr = (invRed >> 7);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 6);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 6);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 5);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 5);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 4);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 4);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 3);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 3);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 2);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 2);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 1);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 1);
+			bb_ptr += 16;
 
-		*bitBand = (invRed >> 0);
-		bitBand += 16;
+			*bb_ptr = (invRed >> 0);
+			bb_ptr += 16;
 
-		// BLUE
-		*bitBand = (invBlue >> 7);
-		bitBand += 16;
+			// BLUE
+			*bb_ptr = (invBlue >> 7);
+			bb_ptr += 16;
 
-		*bitBand = (invBlue >> 6);
-		bitBand += 16;
+			*bb_ptr = (invBlue >> 6);
+			bb_ptr += 16;
 
-		*bitBand = (invBlue >> 5);
-		bitBand += 16;
+			*bb_ptr = (invBlue >> 5);
+			bb_ptr += 16;
 
-		*bitBand = (invBlue >> 4);
-		bitBand += 16;
+			*bb_ptr = (invBlue >> 4);
+			bb_ptr += 16;
 
-		*bitBand = (invBlue >> 3);
-		bitBand += 16;
+			*bb_ptr = (invBlue >> 3);
+			bitBand += 16;
 
-		*bitBand = (invBlue >> 2);
-		bitBand += 16;
+			*bitBand = (invBlue >> 2);
+			bitBand += 16;
 
-		*bitBand = (invBlue >> 1);
-		bitBand += 16;
+			*bitBand = (invBlue >> 1);
+			bitBand += 16;
 
-		*bitBand = (invBlue >> 0);
-		bitBand += 16;
+			*bitBand = (invBlue >> 0);
+			bitBand += 16;
+		}
+
+		row = 0;
+		counter = 0;
+		red = 0;
+		green = 0;
+		blue = 0;
+		rgb_ptr = NULL;
+		global_BB_Struct.bb_output_state = BB_BUFFER_READY;
+	}
+}
+
+void ws2812b_fill_bb() {
+
+	WS2812_BufferItem * bf_ptr1;
+	static buf_state bs = BUFFER_FULL;
+	bf_ptr1 = ws2812b_getBufferItem(bs);
+
+	if (bf_ptr1 != NULL) {
+		bf_ptr1->WS2812_buf_state = READ_LOCKED;
+		bf_ptr1->frameBufferCounter = 0;
+		BB_generator(bf_ptr1);
+		WS2812_sendbuf_helper(bf_ptr1);
+		bf_ptr1->transferComplete = 1;
+		bf_ptr1->startTransfer = 0;
+		bf_ptr1->WS2812_buf_state = NOT_IN_USE;
+		bf_ptr1->frameBufferCounter = 0;
 	}
 
 }
 
 void ws2812b_handle() {
 
-	WS2812_BufferItem * bf_ptr1;
-	static  buf_state bs = BUFFER_FULL;
-	bf_ptr1 = ws2812b_getBufferItem(bs);
 
-	if (bf_ptr1 != NULL) {
-		WS2812_sendbuf(bf_ptr1);
+	if(global_BB_Struct.bb_output_state == BB_BUFFER_READY){
+		WS2812_sendbuf_helper();
 	}
+
 
 }
 
