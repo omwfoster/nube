@@ -1,62 +1,9 @@
-/**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body
- ******************************************************************************
- * This notice applies to any and all portions of this file
- * that are not between comment pairs USER CODE BEGIN and
- * USER CODE END. Other portions of this file, whether
- * inserted by the user or by software development tools
- * are owned by their respective copyright owners.
- *
- * Copyright (c) 2019 STMicroelectronics International N.V.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted, provided that the following conditions are met:
- *
- * 1. Redistribution of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 3. Neither the name of STMicroelectronics nor the names of other
- *    contributors to this software may be used to endorse or promote products
- *    derived from this software without specific written permission.
- * 4. This software, including modifications and/or derivative works of this
- *    software, must execute solely and exclusively on microcontroller or
- *    microprocessor devices manufactured by or for STMicroelectronics.
- * 5. Redistribution and use of this software other than as permitted under
- *    this license is void and will automatically terminate your rights under
- *    this license.
- *
- * THIS SOFTWARE IS PROVIDED BY STMICROELECTRONICS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS, IMPLIED OR STATUTORY WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE AND NON-INFRINGEMENT OF THIRD PARTY INTELLECTUAL PROPERTY
- * RIGHTS ARE DISCLAIMED TO THE FULLEST EXTENT PERMITTED BY LAW. IN NO EVENT
- * SHALL STMICROELECTRONICS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************
- */
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal_conf.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
 #include "visEffect.h"
 
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private variables ---------------------------------------------------------*/
 //I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
@@ -64,7 +11,7 @@ SPI_HandleTypeDef hspi1;
 
 I2S_HandleTypeDef hAudioInI2s;
 
-TIM_HandleTypeDef TIM_Handle;
+
 
 filter_typedef FUNCTION = RFFT;
 
@@ -77,13 +24,9 @@ uint32_t max_Index = 0;
 
 /* Save MEMS ID */
 uint8_t MemsID = 0;
-/* Buffer Status */
-volatile uint32_t AUDIODataReady = 0, AUDIOBuffOffset = 0, FFT_Ready; RGB_Ready;
+/* Buffer Status variables */
 
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE END PV */
+volatile uint8_t AUDIODataReady = 0, FFT_Ready = 0, LED_Ready = 0, PDM_Running = 0;
 
 float32_t FFT_Input[FFT_LEN]; //
 float32_t FFT_Bins[FFT_LEN];
@@ -94,120 +37,60 @@ float32_t FIR_Buf[FFT_LEN];
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
-/* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
-
-/* USER CODE END PFP */
-
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
-/**
- * @brief  The application entry point.
- *
- * @retval None
- */
 int main(void) {
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	fft_ws2812_Init();
+	TIM4_config();
+
 
 	while (1) {
+
+
 
 		if (AUDIODataReady == 1) {
 			StartRFFTTask();
 		}
-		if (FFT_Ready) {
-			generate_rgb(&FFT_Bins[0], &FFT_MagBuf_IIR[0], (FFT_LEN / 2));
+		if (FFT_Ready == 1) {
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 			FFT_Ready = 0;
 		}
-			fill_output_buffer();
+
+		LED_Ready = generate_BB();
+
+
 	}
 	return 1;
 	/* USER CODE END 3 */
 }
 
-/**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void) {
 
-	RCC_OscInitTypeDef RCC_OscInitStruct;
-	RCC_ClkInitTypeDef RCC_ClkInitStruct;
-	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
-
-	/**Configure the main internal regulator output voltage
-	 */
-	__HAL_RCC_PWR_CLK_ENABLE()
-	;
-
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-	/**Initializes the CPU, AHB and APB busses clocks
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLM = 8;
-	RCC_OscInitStruct.PLL.PLLN = 336;
-	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-	RCC_OscInitStruct.PLL.PLLQ = 7;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-	/**Initializes the CPU, AHB and APB busses clocks
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2S;
-	PeriphClkInitStruct.PLLI2S.PLLI2SN = 192;
-	PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
-	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
-		_Error_Handler(__FILE__, __LINE__);
-	}
-
-	/**Configure the Systick interrupt time
-	 */
-	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq() / 1000);
-
-	/**Configure the Systick
-	 */
-	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
-	/* SysTick_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
 
 void fft_ws2812_Init() {
+
+
 
 	sample_runs = 15;
 	enablefpu();
 	HAL_Init();
-	SystemClock_Config();
-	visInit();
-	timer_setup();
+
 	BSP_LED_Init(LED4);
 	BSP_LED_Init(LED5);
 	BSP_LED_Init(LED6);
 	BSP_LED_On(LED4);
 	hann_ptr = Hanning((FFT_LEN), 1);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
+
+#ifndef TEST2
+
 	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
 	DEFAULT_AUDIO_IN_CHANNEL_NBR);
 	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
+
+#endif
+
+	visInit();
+
 }
 
 uint8_t StartRFFTTask() {
@@ -215,7 +98,7 @@ uint8_t StartRFFTTask() {
 	BSP_LED_Toggle(LED5);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-	calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
+	//calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
 	AUDIODataReady = 0;
 	FFT_Ready = 1;
 	return 1;
@@ -310,34 +193,9 @@ void enablefpu() {
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
 
-int timer_setup(void)
 
-{
-	__TIM4_CLK_ENABLE()
-	;
-	TIM_Handle.Init.Prescaler = 42000;
-	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
-	TIM_Handle.Init.Period = 80;
-	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
-	HAL_TIM_Base_Init(&TIM_Handle);     // Init timer
-	HAL_TIM_Base_Start_IT(&TIM_Handle); // start timer interrupts
-	HAL_NVIC_SetPriority(TIM4_IRQn, 0, 1);
-	HAL_NVIC_EnableIRQ(TIM4_IRQn);
-	return 1;
 
-}
 
-void TIM4_IRQHandler(void)
-
-{
-	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
-			{
-		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
-			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
-			visHandle();
-		}
-	}
-}
 
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;

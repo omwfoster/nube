@@ -1,5 +1,4 @@
-visEffect.c:18:5:hsv2rgb	112	static
-visEffect.c:76:6:visInit	8	static
-visEffect.c:83:6:visHandle	8	static
-visEffect.c:92:9:generate_rgb	64	static
-visEffect.c:144:6:fill_output_buffer	8	static
+visEffect.c:17:5:HSV2RGB	112	static
+visEffect.c:75:6:visInit	8	static
+visEffect.c:84:9:generate_RGB	56	static
+visEffect.c:143:9:generate_BB	8	static

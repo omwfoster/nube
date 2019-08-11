@@ -12,10 +12,9 @@ extern "C"
 
 uint8_t w_pos;
 
-extern WS2812_BufferItem * ws2812b_getBufferItem(buf_state status);
+extern WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status);
 
-
-rgb hsv2rgb(hsv in) {
+rgb HSV2RGB(hsv in) {
 	float32_t hh, p, q, t, ff;
 	uint16_t i;
 	rgb out;
@@ -78,33 +77,27 @@ void visInit() {
 	ws2812b_init();
 }
 
-// check if there is a
-
-void visHandle() {
-
-		ws2812b_handle();
 
 
-}
+// Process FFT and populate idle buffer
 
-// Process FFT and populate  NOT_IN_USE ws2812 buffer
-
-uint8_t generate_rgb(float32_t * fft, float32_t * mag, uint32_t array_len) {
-
+uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 	static float32_t f32_FFT_len = (float32_t) FFT_LEN;
-	static buf_state bs = NOT_IN_USE;
+	static ws_buf_state bs = WS_NOT_IN_USE;
 	float32_t * _Real;
 	float32_t * _mag = mag;
 	hsv hsv_struct;
 	volatile rgb rgb_struct;
-	volatile uint8_t * u_ptr;
+	static uint8_t volatile * u_ptr;
 	//ws_item_ptr = Null;
-	ws_item_ptr = (WS2812_BufferItem *) ws2812b_getBufferItem(bs);
+	ws_item_ptr = ws2812b_getBufferItem(bs);
+	//ws_item_ptr = (WS2812_BufferItem *) ws2812b_getBufferItem(TEST); // TEST CODE
+
 
 	if (ws_item_ptr != NULL) {
-		ws_item_ptr->WS2812_buf_state = WRITE_LOCKED;
-		u_ptr = ws_item_ptr->frameBufferPointer;
+		ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
+		u_ptr = ws_item_ptr->rgb_Buffer_ptr;
 		_Real = fft;
 		for (uint16_t i = 1; i < (FFT_LEN / 2); ++i) { ///  hard-coded buffer size need runtime evaluation
 
@@ -114,25 +107,31 @@ uint8_t generate_rgb(float32_t * fft, float32_t * mag, uint32_t array_len) {
 				hsv_struct.s = ((*_Real) / f32_FFT_len);
 				_Real += 2;
 				_mag++;
-				rgb_struct = hsv2rgb(hsv_struct);
+				rgb_struct = HSV2RGB(hsv_struct);
 
-				*(++u_ptr) = (uint8_t) (rgb_struct.r * 255);
-				*(++u_ptr) = (uint8_t) (rgb_struct.g * 255);
-				*(++u_ptr) = (uint8_t) (rgb_struct.b * 255);
+				*u_ptr = (uint8_t) (rgb_struct.r * 255);
+				++u_ptr;
+				*u_ptr = (uint8_t) (rgb_struct.g * 255);
+				++u_ptr;
+				*u_ptr = (uint8_t) (rgb_struct.b * 255);
+				++u_ptr;
 
 			} else {
 				_Real += 2;
 				_mag++;
-				*(++u_ptr) = 0;
-				*(++u_ptr) = 0;
-				*(++u_ptr) = 0;
+				*u_ptr = 0;
+				++u_ptr;
+				*u_ptr = 0;
+				++u_ptr;
+				*u_ptr = 0;
+				++u_ptr;
 			}
 
 		}
 
-		ws_item_ptr->WS2812_buf_state = BUFFER_FULL;
-		ws_item_ptr->transferComplete = 0;
-		ws_item_ptr->startTransfer = 1;
+		//	ws_item_ptr->WS2812_buf_state = BUFFER_FULL;
+		ws_item_ptr->WS2812_buf_state = WS_BUFFER_FULL;
+		ws_item_ptr = NULL;
 
 		return 1;
 	} else {
@@ -141,19 +140,21 @@ uint8_t generate_rgb(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 }
 
-void fill_output_buffer() {
-
+uint8_t generate_BB() {
 
 	// Transfer data from the processed FFT to
 	// Transfer to the Bit Buffer Area
-	static WS2812_BufferItem * buf_ptr;
-	static buf_state bs = BUFFER_FULL;
-	buf_ptr = (ws2812b_getBufferItem(bs));
 
-	if(buf_ptr != NULL)
-	{
-		BB_generator(buf_ptr);
+	static ws_buf_state bs = WS_BUFFER_FULL;
+	static volatile WS2812_BufferItem * bf;
+	bf = (WS2812_BufferItem *) ws2812b_getBufferItem(bs);
+	if (bf != NULL) {
+		BB_generator(bf);
+		bf = NULL;
+		return 1;
 	}
+	bf = NULL;
+	return 0 ;
 
 }
 

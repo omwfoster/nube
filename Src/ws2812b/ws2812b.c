@@ -1,4 +1,3 @@
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -13,8 +12,6 @@ DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
 
-#define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
-
 // Define source arrays for my DMAs
 uint32_t WS2812_IO_High[] = { WS2812B_PINS };
 uint32_t WS2812_IO_Low[] = { WS2812B_PINS << 16 };
@@ -28,6 +25,8 @@ BB_Struct global_BB_Struct;
 uint16_t ws2812bDmaBitBuffer[24 * FFT_LEN / 2]; // DMA output array buffer.
 uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
 uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
+
+#define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
 
 // Gamma correction table
 const uint8_t gammaTable[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -46,7 +45,7 @@ const uint8_t gammaTable[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		200, 203, 205, 208, 210, 213, 215, 218, 220, 223, 225, 228, 231, 233,
 		236, 239, 241, 244, 247, 249, 252, 255 };
 
-static void ws2812b_gpio_init(void) {
+static void GPIO_init(void) {
 	// WS2812B outputs
 	WS2812B_GPIO_CLK_ENABLE()
 	;
@@ -88,7 +87,7 @@ static void TIM1_init(void) {
 	// This computation of pulse length should work ok,
 	// at some slower core speeds it needs some tuning.
 	tim_period = SystemCoreClock / 800000; // 0,125us period (10 times lower the 1,25us period to have fixed math below)
-	timer_reset_pulse_period = (SystemCoreClock / (320 * 60)); // 60us just to be sure
+	timer_reset_pulse_period = (SystemCoreClock / (320 * 60 * 3)); // 60us just to be sure
 
 	uint32_t cc1 = (10 * tim_period) / 36;
 	uint32_t cc2 = (10 * tim_period) / 15;
@@ -131,6 +130,41 @@ static void TIM1_init(void) {
 DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
+
+
+TIM_HandleTypeDef TIM_Handle;
+
+// timer for output rate
+// each full cycle will execute DMA output of the Bitband buffer.
+uint8_t TIM4_config(void)
+
+{
+
+	__TIM4_CLK_ENABLE()
+	;
+	TIM_Handle.Init.Prescaler = 80000;
+	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
+	TIM_Handle.Init.Period = 200;
+	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
+	HAL_TIM_Base_Init(&TIM_Handle);     // Init timer
+	HAL_TIM_Base_Start_IT(&TIM_Handle); // start timer interrupts
+	HAL_NVIC_SetPriority(TIM4_IRQn, 0, 1);
+	HAL_NVIC_EnableIRQ(TIM4_IRQn);
+	return 1;
+
+}
+void TIM4_IRQHandler(void)
+
+{
+	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
+			{
+		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
+			ws2812b_handle();
+		}
+	}
+}
+
 
 
 static void DMA2_init(void) {
@@ -207,34 +241,35 @@ static void DMA2_init(void) {
 			(uint32_t) &WS2812B_PORT->BSRR, BUFFER_SIZE);
 }
 
-
 void ws2812b_init() {
-	ws2812b_gpio_init();
+	GPIO_init();
+
+	ws2812_reset();
 	DMA2_init();
 	TIM1_init();
 	global_WS2812_Struct.item[0].channel = 0;
 	global_WS2812_Struct.item[1].channel = 0;
-	global_WS2812_Struct.item[0].WS2812_buf_state = NOT_IN_USE;
-	global_WS2812_Struct.item[1].WS2812_buf_state = NOT_IN_USE;
+	global_WS2812_Struct.item[0].WS2812_buf_state = WS_NOT_IN_USE;
+	global_WS2812_Struct.item[1].WS2812_buf_state = WS_NOT_IN_USE;
 	global_WS2812_Struct.item[0].frameBufferCounter = 0;
 	global_WS2812_Struct.item[1].frameBufferCounter = 0;
-	global_WS2812_Struct.item[0].frameBufferPointer = &frame_Buffer1[0];
-	global_WS2812_Struct.item[1].frameBufferPointer = &frame_Buffer2[0];
+	global_WS2812_Struct.item[0].rgb_Buffer_ptr = &frame_Buffer1[0];
+	global_WS2812_Struct.item[1].rgb_Buffer_ptr = &frame_Buffer2[0];
 	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN / 2));
 	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN / 2));
-	global_WS2812_Struct.item[0].startTransfer = 0;
-	global_WS2812_Struct.item[1].startTransfer = 0;
+
 	//active_ws2812b_item = &ws2812b.item[0];
 	// Need to start the first transfer
 	global_WS2812_Struct.transferComplete = 1;
 
 	global_BB_Struct.bb_output_state = BB_NOT_IN_USE;
-	global_BB_Struct.ws2812bDmaBitBuffer = &ws2812bDmaBitBuffer;
+	global_BB_Struct.ws2812bDmaBitBuffer = &ws2812bDmaBitBuffer[0];
 
 }
 
-
 void WS2812_sendbuf_helper() {
+
+	global_BB_Struct.bb_output_state = BB_OUTPUT_BUFFER;
 
 	// clear all DMA flags
 	__HAL_DMA_CLEAR_FLAG(&dmaUpdate,
@@ -264,7 +299,7 @@ void WS2812_sendbuf_helper() {
 
 	TIM1->CNT = tim_period - 1;
 
-	// start TIM2
+
 	__HAL_TIM_ENABLE(&TIM1_handle);
 }
 
@@ -314,17 +349,11 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 	WS2812B_PORT->BSRR = WS2812_IO_Low[0];
 	//READ_ws2812b_item->buf_state = NOT_IN_USE;
 
-	if (global_WS2812_Struct.item[0].WS2812_buf_state == READ_LOCKED) {
-		global_WS2812_Struct.item[0].WS2812_buf_state = NOT_IN_USE;
-		global_WS2812_Struct.item[0].startTransfer = 0;
-		global_WS2812_Struct.item[0].transferComplete = 1;
-	} else if (global_WS2812_Struct.item[1].WS2812_buf_state == READ_LOCKED) {
-		global_WS2812_Struct.item[1].WS2812_buf_state = NOT_IN_USE;
-		global_WS2812_Struct.item[1].startTransfer = 0;
-		global_WS2812_Struct.item[1].transferComplete = 1;
-	}
-
 	global_WS2812_Struct.transferComplete = 1;
+	global_BB_Struct.bb_output_state = BB_TRANSFER_COMPLETE;
+	ws2812_reset();
+	NVIC_EnableIRQ(TIM4_IRQn);
+	BSP_AUDIO_IN_Resume();
 
 #if defined(LED_ORANGE_PORT)
 	LED_ORANGE_PORT->BSRR = LED_ORANGE_PIN << 16;
@@ -350,44 +379,51 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 // TIM2 Interrupt Handler gets executed on every TIM2 Update if enabled
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
+	if (global_BB_Struct.bb_output_state == BB_TRANSFER_COMPLETE) {
+		global_WS2812_Struct.timerPeriodCounter = 0;
+		TIM1->CR1 = 0; // disable timer
 
-	global_WS2812_Struct.timerPeriodCounter = 0;
-	TIM1->CR1 = 0; // disable timer
+		// disable the TIM2 Update IRQ
+		__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
 
-	// disable the TIM2 Update IRQ
-	__HAL_TIM_DISABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
+		// Set back 1,25us period
+		TIM1->ARR = tim_period;
 
-	// Set back 1,25us period
-	TIM1->ARR = tim_period;
+		// Generate an update event to reload the Prescaler value immediatly
+		TIM1->EGR = TIM_EGR_UG;
+		__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
 
-	// Generate an update event to reload the Prescaler value immediatly
-	TIM1->EGR = TIM_EGR_UG;
-	__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
-
-	// set transfer_complete flag
-	global_WS2812_Struct.transferComplete = 1;
-
+		// set transfer_complete flag
+		global_WS2812_Struct.transferComplete = 1;
+		global_BB_Struct.bb_output_state = BB_NOT_IN_USE;
+	}
 }
 
-void BB_generator(WS2812_BufferItem * WS_Buf) {
+// take the rgb array result, test for null, and then fill the bitchin' bit-band badness.
 
-	if ((global_BB_Struct.bb_output_state) != BB_NOT_IN_USE) {
-		return;
-	} else {
+uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
+
+
+
+	if ((WS_Buf != NULL)
+			&& ((global_BB_Struct.bb_output_state) == BB_NOT_IN_USE)) {
+
+		global_BB_Struct.bb_output_state = BB_WRITE_LOCKED;
+		WS_Buf->WS2812_buf_state = WS_READ_LOCKED;
 		static uint16_t row = 0;
 		static uint32_t counter = 0;
 		static uint8_t red;
 		static uint8_t green;
 		static uint8_t blue;
 		static uint8_t * rgb_ptr = 0;
-		rgb_ptr = WS_Buf->frameBufferPointer;
-		uint32_t volatile *bitBand = BITBAND_SRAM(&global_BB_Struct.ws2812bDmaBitBuffer, row);
+		rgb_ptr = WS_Buf->rgb_Buffer_ptr;
+		uint32_t *bitBand = BITBAND_SRAM(global_BB_Struct.ws2812bDmaBitBuffer,
+				row); // map pointer to 0x22000000 memory space
 		uint32_t volatile * bb_ptr;
 		bb_ptr = bitBand;
 
-		for (counter = 1; counter < (FFT_LEN / 2); ++counter)
+		for (counter = 1; counter < FFT_LEN / 2; ++counter) {
 
-		{
 			red = *rgb_ptr;
 			green = *rgb_ptr++;
 			blue = *rgb_ptr++;
@@ -474,6 +510,9 @@ void BB_generator(WS2812_BufferItem * WS_Buf) {
 
 			*bitBand = (invBlue >> 0);
 			bitBand += 16;
+
+
+
 		}
 
 		row = 0;
@@ -483,39 +522,71 @@ void BB_generator(WS2812_BufferItem * WS_Buf) {
 		blue = 0;
 		rgb_ptr = NULL;
 		global_BB_Struct.bb_output_state = BB_BUFFER_READY;
+		WS_Buf->WS2812_buf_state = WS_NOT_IN_USE;
+		return 1; //default
 	}
+	return 0 ;
 }
 
-void ws2812b_fill_bb() {
+// kick off DMA output
+// if BitBand buffer has been filled by the main process.
+// bb_output_state will be         BB_BUFFER_READY
 
-	WS2812_BufferItem * bf_ptr1;
-	static buf_state bs = BUFFER_FULL;
-	bf_ptr1 = ws2812b_getBufferItem(bs);
-
-	if (bf_ptr1 != NULL) {
-		bf_ptr1->WS2812_buf_state = READ_LOCKED;
-		bf_ptr1->frameBufferCounter = 0;
-		BB_generator(bf_ptr1);
-		WS2812_sendbuf_helper(bf_ptr1);
-		bf_ptr1->transferComplete = 1;
-		bf_ptr1->startTransfer = 0;
-		bf_ptr1->WS2812_buf_state = NOT_IN_USE;
-		bf_ptr1->frameBufferCounter = 0;
-	}
-
-}
-
-void ws2812b_handle() {
+uint8_t ws2812b_handle() {
 
 
-	if(global_BB_Struct.bb_output_state == BB_BUFFER_READY){
+	if (global_BB_Struct.bb_output_state == BB_BUFFER_READY) {
+		NVIC_DisableIRQ(TIM4_IRQn);
+		BSP_AUDIO_IN_Pause();
 		WS2812_sendbuf_helper();
+		return 1;
 	}
+	return 0;
+
 
 
 }
 
-WS2812_BufferItem * ws2812b_getBufferItem(buf_state status) {
+void ws2812_reset() {
+
+	// Set 50us period for Treset pulse
+	//TIM2->PSC = 1000; // For this long period we need prescaler 1000
+	TIM1->ARR = timer_reset_pulse_period;
+	// Reset the timer
+	TIM1->CNT = 0;
+
+	// Generate an update event to reload the prescaler value immediately
+	TIM1->EGR = TIM_EGR_UG;
+	__HAL_TIM_CLEAR_FLAG(&TIM1_handle, TIM_FLAG_UPDATE);
+
+	// Enable TIM2 Update interrupt for 50us Treset signal
+	__HAL_TIM_ENABLE_IT(&TIM1_handle, TIM_IT_UPDATE);
+	// Enable timer
+	TIM1->CR1 |= TIM_CR1_CEN;
+
+	// Manually set outputs to low to generate 50us reset impulse
+	WS2812B_PORT->BSRR = WS2812_IO_Low[0];
+
+}
+
+// retrieve an RGB buffer according to status enumeration
+// buf_state {READ_LOCKED,WRITE_LOCKED,BUFFER_FULL,NOT_IN_USE}
+// if no suitable buffer is available then return NULL pointer.
+
+WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status) {
+
+#ifdef TEST
+	if (global_WS2812_Struct.item[0].WS2812_buf_state != WS_WRITE_LOCKED) {
+		return &global_WS2812_Struct.item[0];
+	} else if (global_WS2812_Struct.item[1].WS2812_buf_state
+			!= WS_WRITE_LOCKED) {
+		return &global_WS2812_Struct.item[1];
+	} else {
+		return NULL;
+	}
+
+#else
+
 	if (global_WS2812_Struct.item[0].WS2812_buf_state == status) {
 
 		return &global_WS2812_Struct.item[0];
@@ -526,8 +597,9 @@ WS2812_BufferItem * ws2812b_getBufferItem(buf_state status) {
 	}
 	return NULL;
 
-}
+#endif
 
+}
 #ifdef __cplusplus
 }
 #endif
