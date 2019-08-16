@@ -49,7 +49,7 @@
 #define DEFAULT_AUDIO_IN_FREQ                 16000U
 #define DEFAULT_AUDIO_IN_BIT_RESOLUTION       16
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR          1 /* Mono = 1, Stereo = 2 */
-#define DEFAULT_AUDIO_IN_VOLUME               32
+#define DEFAULT_AUDIO_IN_VOLUME               80
 
 /* PDM buffer input size */
 #define INTERNAL_BUFF_SIZE                    128*DEFAULT_AUDIO_IN_FREQ/16000*DEFAULT_AUDIO_IN_CHANNEL_NBR

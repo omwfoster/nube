@@ -17,7 +17,7 @@ extern "C" {
 #include "../Src/ws2812b/ws2812b.h"
 
 
-WS2812_BufferItem * ws_item_ptr;
+
 extern WS2812_BufferItem * getBufferItem(uint8_t status);
 extern uint8_t frame_Buffer[];
 extern uint8_t frame_Buffer2[];

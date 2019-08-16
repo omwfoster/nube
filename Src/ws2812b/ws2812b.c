@@ -87,7 +87,7 @@ static void TIM1_init(void) {
 	// This computation of pulse length should work ok,
 	// at some slower core speeds it needs some tuning.
 	tim_period = SystemCoreClock / 800000; // 0,125us period (10 times lower the 1,25us period to have fixed math below)
-	timer_reset_pulse_period = (SystemCoreClock / (320 * 60 * 3)); // 60us just to be sure
+	timer_reset_pulse_period = 480; // 60us just to be sure
 
 	uint32_t cc1 = (10 * tim_period) / 36;
 	uint32_t cc2 = (10 * tim_period) / 15;
@@ -142,9 +142,9 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 80000;
+	TIM_Handle.Init.Prescaler = 40;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
-	TIM_Handle.Init.Period = 200;
+	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
 	HAL_TIM_Base_Init(&TIM_Handle);     // Init timer
 	HAL_TIM_Base_Start_IT(&TIM_Handle); // start timer interrupts

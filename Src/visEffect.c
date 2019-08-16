@@ -83,6 +83,8 @@ void visInit() {
 
 uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
+
+	static WS2812_BufferItem * ws_item_ptr;
 	static float32_t f32_FFT_len = (float32_t) FFT_LEN;
 	static ws_buf_state bs = WS_NOT_IN_USE;
 	float32_t * _Real;
@@ -103,8 +105,8 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 			if (*(_mag) > 0.0f) {
 				hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
-				hsv_struct.v = (*(_mag) / *(_Real));
-				hsv_struct.s = ((*_Real) / f32_FFT_len);
+				hsv_struct.s = (*(_mag) / *(_Real));
+				hsv_struct.v = ((*_Real) / f32_FFT_len);
 				_Real += 2;
 				_mag++;
 				rgb_struct = HSV2RGB(hsv_struct);

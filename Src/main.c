@@ -11,8 +11,6 @@ SPI_HandleTypeDef hspi1;
 
 I2S_HandleTypeDef hAudioInI2s;
 
-
-
 filter_typedef FUNCTION = RFFT;
 
 volatile uint32_t ITCounter = 0; //  buffer position
@@ -28,7 +26,16 @@ uint8_t MemsID = 0;
 
 volatile uint8_t AUDIODataReady = 0, FFT_Ready = 0, LED_Ready = 0, PDM_Running = 0;
 
+
+static float32_t peq1_coeffsA[5] = { 1.0, -1.0, 0, 0.95, 0 };
+
+static float32_t peq1_state[2];
+//static bool peq1_abFlag = false;
+/* Two filter instances so we can use one while calculating the coefficients of the other */
+static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,		peq1_coeffsA };
+
 float32_t FFT_Input[FFT_LEN]; //
+float32_t BQ_Input[FFT_LEN]; //
 float32_t FFT_Bins[FFT_LEN];
 float32_t FFT_MagBuf[FFT_LEN / 2]; //
 float32_t FFT_MagBuf_IIR[FFT_LEN / 2]; //
@@ -43,10 +50,7 @@ int main(void) {
 	fft_ws2812_Init();
 	TIM4_config();
 
-
 	while (1) {
-
-
 
 		if (AUDIODataReady == 1) {
 			StartRFFTTask();
@@ -58,19 +62,14 @@ int main(void) {
 
 		LED_Ready = generate_BB();
 
-
 	}
 	return 1;
 	/* USER CODE END 3 */
 }
 
-
-
 void fft_ws2812_Init() {
 
-
-
-	sample_runs = 15;
+	sample_runs = 16;
 	enablefpu();
 	HAL_Init();
 
@@ -96,9 +95,11 @@ void fft_ws2812_Init() {
 uint8_t StartRFFTTask() {
 
 	BSP_LED_Toggle(LED5);
+//	arm_biquad_cascade_df1_f32(&peq1_instanceA, &FFT_Input[0], &BQ_Input[0], FFT_LEN);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-	//calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
+//	arm_biquad_cascade_df1_f32(&peq1_instanceA, &FFT_MagBuf[0], &FFT_MagBuf_IIR[0], FFT_LEN /2 );
+//	calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
 	AUDIODataReady = 0;
 	FFT_Ready = 1;
 	return 1;
@@ -175,7 +176,7 @@ void calc_mag_output(float32_t * mag_old, float32_t * mag_new, uint16_t len) {
 	m_n = mag_new;
 	m_o = mag_old;
 	for (uint16_t i = 1; i < len; ++i) {
-		*m_o = ((*(m_n) * 0.02F) + (*(m_o) * 0.98F));
+		*m_o = ((*(m_n) * 0.2F) + (*(m_o) * 0.8F));
 		m_n++;
 		m_o++;
 	}
@@ -192,10 +193,6 @@ void enablefpu() {
 			"  dsb                       \n" /* wait for store to complete */
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
-
-
-
-
 
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;
