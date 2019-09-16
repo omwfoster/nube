@@ -77,36 +77,53 @@ void visInit() {
 	ws2812b_init();
 }
 
+// TODO : implement smoothing algorithm as a callback
 
+void smooth_rgb(float32_t * mag_input, float32_t * mag_output, uint16_t len) {
+
+	static float32_t * m_o;
+	static float32_t * m_n;
+	m_n = mag_input;
+	m_o = mag_output;
+	for (uint16_t i = 1; i < len; ++i) {
+		*m_o = ((*(m_n) * 0.02F) + (*(m_o) * 0.98F));
+		m_n++;
+		m_o++;
+	}
+}
 
 // Process FFT and populate idle buffer
 
 uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
-
 
 	static WS2812_BufferItem * ws_item_ptr;
 	static float32_t f32_FFT_len = (float32_t) FFT_LEN;
 	static ws_buf_state bs = WS_NOT_IN_USE;
 	float32_t * _Real;
 	float32_t * _mag = mag;
+	static float32_t _mag_mean;
+	static uint32_t mag_max_i;
+	static float32_t mag_max;
+
 	hsv hsv_struct;
 	volatile rgb rgb_struct;
 	static uint8_t volatile * u_ptr;
-	//ws_item_ptr = Null;
 	ws_item_ptr = ws2812b_getBufferItem(bs);
-	//ws_item_ptr = (WS2812_BufferItem *) ws2812b_getBufferItem(TEST); // TEST CODE
-
 
 	if (ws_item_ptr != NULL) {
 		ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
 		u_ptr = ws_item_ptr->rgb_Buffer_ptr;
 		_Real = fft;
+		arm_mean_f32(mag, array_len, &_mag_mean);
+		arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
+
 		for (uint16_t i = 1; i < (FFT_LEN / 2); ++i) { ///  hard-coded buffer size need runtime evaluation
 
 			if (*(_mag) > 0.0f) {
 				hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
-				hsv_struct.s = (*(_mag) / *(_Real));
-				hsv_struct.v = ((*_Real) / f32_FFT_len);
+
+				hsv_struct.s = (*(_Real) / *(_mag));
+				hsv_struct.v = (*(_mag) / mag_max);
 				_Real += 2;
 				_mag++;
 				rgb_struct = HSV2RGB(hsv_struct);
@@ -119,14 +136,14 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 				++u_ptr;
 
 			} else {
+				*u_ptr = 0;
+				++u_ptr;
+				*u_ptr = 0;
+				++u_ptr;
+				*u_ptr = 0;
+				++u_ptr;
 				_Real += 2;
 				_mag++;
-				*u_ptr = 0;
-				++u_ptr;
-				*u_ptr = 0;
-				++u_ptr;
-				*u_ptr = 0;
-				++u_ptr;
 			}
 
 		}
@@ -148,7 +165,7 @@ uint8_t generate_BB() {
 	// Transfer to the Bit Buffer Area
 
 	static ws_buf_state bs = WS_BUFFER_FULL;
-	static volatile WS2812_BufferItem * bf;
+	WS2812_BufferItem volatile * bf;
 	bf = (WS2812_BufferItem *) ws2812b_getBufferItem(bs);
 	if (bf != NULL) {
 		BB_generator(bf);
@@ -156,7 +173,7 @@ uint8_t generate_BB() {
 		return 1;
 	}
 	bf = NULL;
-	return 0 ;
+	return 0;
 
 }
 

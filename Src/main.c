@@ -2,21 +2,22 @@
 #include "stm32f4xx_hal_conf.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
-#include "visEffect.h"
-
 //I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
+#include "visEffect.h"
+#include "stdbool.h"
+#include "omwof/omwof_test.h"
+
+#define OUTPUT_TEST
 SPI_HandleTypeDef hspi1;
 
 I2S_HandleTypeDef hAudioInI2s;
 
-filter_typedef FUNCTION = RFFT;
+volatile uint32_t ITCounter = 0; //  buffer position for use in isr
+volatile uint16_t buff_pos = 0;  // pointer to buffer position
 
-volatile uint32_t ITCounter = 0; //  buffer position
-volatile uint16_t buff_pos = 0;
-
-float32_t F_Sum = 0.0f;
+float32_t F_Sum = 0.0f;  // cmsis support function variables
 float32_t max_Value = 0.0;
 uint32_t max_Index = 0;
 
@@ -24,52 +25,158 @@ uint32_t max_Index = 0;
 uint8_t MemsID = 0;
 /* Buffer Status variables */
 
-volatile uint8_t AUDIODataReady = 0, FFT_Ready = 0, LED_Ready = 0, PDM_Running = 0;
+volatile uint8_t AUDIODataReady = 0, FFT_Ready = 0, LED_Ready = 0, PDM_Running =
+		0;
 
+arm_rfft_fast_instance_f32 rfft_s;
 
+/* Width of the peak */
+static float32_t peq1_width = 5.0f;
 static float32_t peq1_coeffsA[5] = { 1.0, -1.0, 0, 0.95, 0 };
 
 static float32_t peq1_state[2];
-//static bool peq1_abFlag = false;
+static bool peq1_abFlag = false;
 /* Two filter instances so we can use one while calculating the coefficients of the other */
-static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,		peq1_coeffsA };
+static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
+		peq1_coeffsA };
+
+float32_t BQ_Input[FFT_LEN]; //
 
 float32_t FFT_Input[FFT_LEN]; //
-float32_t BQ_Input[FFT_LEN]; //
 float32_t FFT_Bins[FFT_LEN];
 float32_t FFT_MagBuf[FFT_LEN / 2]; //
 float32_t FFT_MagBuf_IIR[FFT_LEN / 2]; //
-float32_t FIR_Buf[FFT_LEN];
+
+chunk_TypeDef sine_test;
+
+// hanning windowing functions for sample blocks.
+float32_t hann_window[FFT_LEN];
+float32_t hann_buff[FFT_LEN];
+
+// sample data
+uint16_t InternalBuffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFAULT_AUDIO_IN_FREQ/16000 *DEFAULT_AUDIO_IN_CHANNEL_NBR
+uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
+float32_t float_array[PCM_OUT_SIZE];
+
+uint16_t test_freq = 100;
+
+void enablefpu() {
+	__asm volatile(
+			"  ldr.w r0, =0xE000ED88    \n" /* The FPU enable bits are in the CPACR. */
+			"  ldr r1, [r0]             \n" /* read CAPCR */
+			"  orr r1, r1, #( 0xf <<20 )\n" /* Set bits 20-23 to enable CP10 and CP11 coprocessors */
+			"  str r1, [r0]              \n" /* Write back the modified value to the CPACR */
+			"  dsb                       \n" /* wait for store to complete */
+			"  isb" /* reset pipeline now the FPU is enabled */);
+}
+
+uint32_t sample_runs;
+
+void cleanbuffers() {
+
+#ifndef OUTPUT_TEST
+
+	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
+
+#endif
+	arm_fill_f32(0.0f, BQ_Input, FFT_LEN);
+	arm_fill_f32(0.0f, FFT_Bins, FFT_LEN);
+	arm_fill_f32(0.0f, FFT_MagBuf, FFT_LEN / 2);
+
+}
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
-int main(void) {
+TIM_HandleTypeDef TIM_Handle;
 
+uint8_t TIM4_config(void)
+
+{
+
+	__TIM4_CLK_ENABLE()
+	;
+	TIM_Handle.Init.Prescaler = 1000;
+	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
+	TIM_Handle.Init.Period = 16000;
+	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
+	HAL_TIM_Base_Init(&TIM_Handle);     // Init timer
+	HAL_TIM_Base_Start_IT(&TIM_Handle); // start timer interrupts
+	HAL_NVIC_SetPriority(TIM4_IRQn, 0, 1);
+	HAL_NVIC_EnableIRQ(TIM4_IRQn);
+	return 1;
+
+}
+void TIM4_IRQHandler(void)
+
+{
+	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
+			{
+		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
+
+			ws2812b_handle();
+		}
+	}
+}
+
+void test_loop() {
+
+	init_chunk(16000, test_freq, &sine_test);
+	sine_chunk(&sine_test);
+	copy_chunk(&FFT_Input[0], FFT_LEN, &sine_test);
+	if (test_freq < 16000) {
+		test_freq += 1000;
+	} else {
+		test_freq = 1000;
+	}
+}
+
+uint32_t i = 0;
+void test_loop2() {
+//	init_chunk(16000, test_freq, &sine_test);
+	sine_sample(&FFT_Input[0], FFT_LEN, i);
+	if (i < FFT_LEN) {
+		i++;
+	} else {
+		i = 0;
+	}
+	AUDIODataReady = 1;
+}
+void main(void) {
+	cleanbuffers();
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	fft_ws2812_Init();
 	TIM4_config();
+	test_freq = 4000;
+
+	//memset (FFT_MagBuf_IIR,0,sizeof(FFT_MagBuf_IIR)); //
 
 	while (1) {
 
-		if (AUDIODataReady == 1) {
-			StartRFFTTask();
-		}
 		if (FFT_Ready == 1) {
 			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
+			//	cleanbuffers();
 			FFT_Ready = 0;
+			AUDIODataReady = 0;
+			LED_Ready = generate_BB();
 		}
 
-		LED_Ready = generate_BB();
+		if (AUDIODataReady == 1) {
+
+			StartRFFTTask();
+		} else {
+			test_loop2();
+		}
 
 	}
-	return 1;
+//	return 1;
 	/* USER CODE END 3 */
 }
 
 void fft_ws2812_Init() {
 
-	sample_runs = 16;
+	sample_runs = 8;
 	enablefpu();
 	HAL_Init();
 
@@ -77,16 +184,20 @@ void fft_ws2812_Init() {
 	BSP_LED_Init(LED5);
 	BSP_LED_Init(LED6);
 	BSP_LED_On(LED4);
-	hann_ptr = Hanning((FFT_LEN), 1);
+	hann_ptr = Hanning((FFT_LEN), 0);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 
-#ifndef TEST2
+	/*#ifndef OUTPUT_TEST
+	 BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
+	 DEFAULT_AUDIO_IN_CHANNEL_NBR);
+	 BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
 
-	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
-	DEFAULT_AUDIO_IN_CHANNEL_NBR);
-	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
+	 #else*/
+	test_freq = 100;
 
-#endif
+	AUDIODataReady = 0;
+
+//#endif
 
 	visInit();
 
@@ -95,12 +206,12 @@ void fft_ws2812_Init() {
 uint8_t StartRFFTTask() {
 
 	BSP_LED_Toggle(LED5);
-//	arm_biquad_cascade_df1_f32(&peq1_instanceA, &FFT_Input[0], &BQ_Input[0], FFT_LEN);
+
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-//	arm_biquad_cascade_df1_f32(&peq1_instanceA, &FFT_MagBuf[0], &FFT_MagBuf_IIR[0], FFT_LEN /2 );
-//	calc_mag_output(&FFT_MagBuf_IIR[0], &FFT_MagBuf[0], FFT_LEN / 2);
+	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
 	AUDIODataReady = 0;
+
 	FFT_Ready = 1;
 	return 1;
 
@@ -110,16 +221,8 @@ void PCM_to_Float(uint16_t *samples_PCM, float32_t *samples_float32,
 		uint16_t length_array) {
 
 	for (uint16_t i = 0; i < length_array; i++) {
-		samples_float32[i] = (float32_t) samples_PCM[i] * (1.0f / 65535.0f);
+		samples_float32[i] = (float32_t) samples_PCM[i];
 	}
-
-}
-
-void PCM_Preprocess(float32_t *input_ptr, float32_t *window,
-		float32_t *output_ptr, uint8_t length_block) {
-
-	arm_mult_f32(&input_ptr[0], &window[0], &output_ptr[0],
-			(uint8_t) length_block);
 
 }
 
@@ -133,16 +236,16 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		PCM_Preprocess((float32_t *) &float_array[0],
-				(float32_t *) &hann_window[ITCounter * PCM_OUT_SIZE],
-				(float32_t *) &FFT_Input[ITCounter * PCM_OUT_SIZE],
-				PCM_OUT_SIZE);
+		arm_mult_f32(&float_array[0], &hann_window[ITCounter * PCM_OUT_SIZE],
+				&FFT_Input[ITCounter * PCM_OUT_SIZE], PCM_OUT_SIZE);
 
-		if (ITCounter == sample_runs) {
+		if (ITCounter < (sample_runs - 1)) {
+			ITCounter++;
+
+		} else {
 			AUDIODataReady = 1;
 			ITCounter = 0;
-		} else {
-			ITCounter++;
+
 		}
 	}
 }
@@ -155,49 +258,40 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		PCM_Preprocess((float32_t *) &float_array[0],
-				(float32_t *) &hann_window[ITCounter * PCM_OUT_SIZE],
-				(float32_t *) &FFT_Input[ITCounter * PCM_OUT_SIZE],
-				PCM_OUT_SIZE);
+		arm_mult_f32(&float_array[0], &hann_window[ITCounter * PCM_OUT_SIZE],
+				&FFT_Input[ITCounter * PCM_OUT_SIZE], PCM_OUT_SIZE);
 
-		if (ITCounter == sample_runs) {
+		if (ITCounter < (sample_runs - 1)) {
+			ITCounter++;
+
+		} else {
 			AUDIODataReady = 1;
 			ITCounter = 0;
-		} else {
-			ITCounter++;
+
 		}
 	}
 }
 
-void calc_mag_output(float32_t * mag_old, float32_t * mag_new, uint16_t len) {
+void calc_mag_output(float32_t * mag_input, float32_t * mag_output,
+		uint16_t len) {
 
 	float32_t * m_o;
 	float32_t * m_n;
-	m_n = mag_new;
-	m_o = mag_old;
+	m_n = mag_input;
+	m_o = mag_output;
 	for (uint16_t i = 1; i < len; ++i) {
-		*m_o = ((*(m_n) * 0.2F) + (*(m_o) * 0.8F));
+		if (*m_n > 1.0f) {
+			*m_o = ((*(m_n) * 0.02F) + (*(m_o) * 0.98F));
+		}
 		m_n++;
 		m_o++;
 	}
 }
 
-// Enable the FPU (Cortex-M4 - STM32F4xx and higher)
-// http://infocenter.arm.com/help/topic/com.arm.doc.dui0553a/BEHBJHIG.html
-void enablefpu() {
-	__asm volatile(
-			"  ldr.w r0, =0xE000ED88    \n" /* The FPU enable bits are in the CPACR. */
-			"  ldr r1, [r0]             \n" /* read CAPCR */
-			"  orr r1, r1, #( 0xf <<20 )\n" /* Set bits 20-23 to enable CP10 and CP11 coprocessors */
-			"  str r1, [r0]              \n" /* Write back the modified value to the CPACR */
-			"  dsb                       \n" /* wait for store to complete */
-			"  isb" /* reset pipeline now the FPU is enabled */);
-}
-
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;
 
-	memset(hann_window, 0, (N * 4));
+	arm_fill_f32(0.0f, hann_window, N);
 
 	if (itype == 1) //periodic function
 		n = N - 1;

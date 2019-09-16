@@ -22,7 +22,7 @@ WS2812_BufferItem * ptr_active_output;
 WS2812_BufferItem * ptr_active_input;
 
 BB_Struct global_BB_Struct;
-uint16_t ws2812bDmaBitBuffer[24 * FFT_LEN / 2]; // DMA output array buffer.
+uint16_t ws2812bDmaBitBuffer[(24 * FFT_LEN) / 2]; // DMA output array buffer.
 uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
 uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
 
@@ -87,7 +87,7 @@ static void TIM1_init(void) {
 	// This computation of pulse length should work ok,
 	// at some slower core speeds it needs some tuning.
 	tim_period = SystemCoreClock / 800000; // 0,125us period (10 times lower the 1,25us period to have fixed math below)
-	timer_reset_pulse_period = 480; // 60us just to be sure
+	timer_reset_pulse_period = 600; // 60us just to be sure
 
 	uint32_t cc1 = (10 * tim_period) / 36;
 	uint32_t cc2 = (10 * tim_period) / 15;
@@ -132,38 +132,9 @@ DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
 
 
-TIM_HandleTypeDef TIM_Handle;
-
 // timer for output rate
 // each full cycle will execute DMA output of the Bitband buffer.
-uint8_t TIM4_config(void)
 
-{
-
-	__TIM4_CLK_ENABLE()
-	;
-	TIM_Handle.Init.Prescaler = 40;
-	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
-	TIM_Handle.Init.Period = 16000;
-	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
-	HAL_TIM_Base_Init(&TIM_Handle);     // Init timer
-	HAL_TIM_Base_Start_IT(&TIM_Handle); // start timer interrupts
-	HAL_NVIC_SetPriority(TIM4_IRQn, 0, 1);
-	HAL_NVIC_EnableIRQ(TIM4_IRQn);
-	return 1;
-
-}
-void TIM4_IRQHandler(void)
-
-{
-	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
-			{
-		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
-			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
-			ws2812b_handle();
-		}
-	}
-}
 
 
 
@@ -255,8 +226,10 @@ void ws2812b_init() {
 	global_WS2812_Struct.item[1].frameBufferCounter = 0;
 	global_WS2812_Struct.item[0].rgb_Buffer_ptr = &frame_Buffer1[0];
 	global_WS2812_Struct.item[1].rgb_Buffer_ptr = &frame_Buffer2[0];
-	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN / 2));
-	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN / 2));
+	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN) / 2);
+	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN) / 2);
+	memset(&frame_Buffer1[0],0,sizeof(frame_Buffer1));
+	memset(&frame_Buffer1[0],0,sizeof(frame_Buffer2));
 
 	//active_ws2812b_item = &ws2812b.item[0];
 	// Need to start the first transfer
@@ -264,6 +237,7 @@ void ws2812b_init() {
 
 	global_BB_Struct.bb_output_state = BB_NOT_IN_USE;
 	global_BB_Struct.ws2812bDmaBitBuffer = &ws2812bDmaBitBuffer[0];
+//	memset(&ws2812bDmaBitBuffer[0],0,sizeof(ws2812bDmaBitBuffer) * 2);
 
 }
 
@@ -575,17 +549,7 @@ void ws2812_reset() {
 
 WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status) {
 
-#ifdef TEST
-	if (global_WS2812_Struct.item[0].WS2812_buf_state != WS_WRITE_LOCKED) {
-		return &global_WS2812_Struct.item[0];
-	} else if (global_WS2812_Struct.item[1].WS2812_buf_state
-			!= WS_WRITE_LOCKED) {
-		return &global_WS2812_Struct.item[1];
-	} else {
-		return NULL;
-	}
 
-#else
 
 	if (global_WS2812_Struct.item[0].WS2812_buf_state == status) {
 
@@ -597,7 +561,8 @@ WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status) {
 	}
 	return NULL;
 
-#endif
+
+
 
 }
 #ifdef __cplusplus

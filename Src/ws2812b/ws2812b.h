@@ -45,7 +45,7 @@ uint8_t ws2812b_handle();
 // Library structures
 // ******************
 // This value sets number of periods to generate 50uS Treset signal
-#define WS2812_RESET_PERIOD 50
+#define WS2812_RESET_PERIOD 60
 typedef enum buf_state {WS_READ_LOCKED,WS_WRITE_LOCKED,WS_BUFFER_FULL,WS_NOT_IN_USE,TEST} ws_buf_state;
 
 typedef struct WS2812_BufferItem {
@@ -64,7 +64,7 @@ typedef struct WS2812_Struct
 	uint8_t transferComplete;
 	uint32_t timerPeriodCounter;
 	uint32_t repeatCounter;
-} __attribute__((packed)) WS2812_Struct;
+} WS2812_Struct;
 
 
 
@@ -75,7 +75,7 @@ typedef struct BitBand_Buffer
 {
 	bb_buf_state bb_output_state;
 	uint16_t * ws2812bDmaBitBuffer;
-} __attribute__((packed)) BB_Struct;
+} BB_Struct;
 
 
 extern WS2812_Struct * ptr_ws2812b_struct;
