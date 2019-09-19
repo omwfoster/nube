@@ -96,7 +96,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 1000;
+	TIM_Handle.Init.Prescaler = 125;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -132,15 +132,21 @@ void test_loop() {
 	}
 }
 
-uint32_t i = 0;
+uint32_t i = 2;
 void test_loop2() {
 //	init_chunk(16000, test_freq, &sine_test);
 	sine_sample(&FFT_Input[0], FFT_LEN, i);
+
+
 	if (i < FFT_LEN) {
-		i++;
+		sine_sample(&FFT_Input[0], FFT_LEN, i);
+		i*=2;
 	} else {
-		i = 0;
+		i = 2;
 	}
+
+
+
 	AUDIODataReady = 1;
 }
 void main(void) {

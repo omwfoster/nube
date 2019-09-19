@@ -18,7 +18,6 @@ uint8_t init_chunk(uint32_t data_rate, uint32_t sample_freq, chunk_TypeDef * ts)
 
 }
 
-
 void sine_chunk(chunk_TypeDef * ts) {
 
 	volatile float32_t * ptr_impulse = ts->ptr_array;
@@ -33,7 +32,7 @@ void sine_chunk(chunk_TypeDef * ts) {
 }
 
 void copy_chunk(float32_t * output, uint32_t len, chunk_TypeDef * ts) {
-	float32_t  * d_loc = output;
+	float32_t * d_loc = output;
 	uint8_t repeats = len / ts->chunk_len;
 	for (uint8_t i = 0; i < repeats; ++i) {
 		memcpy(d_loc, ts->ptr_array, (ts->chunk_len * 4));
@@ -44,23 +43,19 @@ void copy_chunk(float32_t * output, uint32_t len, chunk_TypeDef * ts) {
 
 }
 
-
-
-void sine_sample(float32_t * output, uint32_t array_len,uint32_t cycle_len) {
-
+void sine_sample(float32_t * output, uint32_t array_len, uint32_t cycle_len) {
 
 	float32_t volatile * ptr_impulse = output;
-	float32_t j = (array_len - cycle_len );
-	float32_t k  = 0.0;
-	for (uint16_t i = 0; i < array_len; ++i)
+
+	volatile float32_t k = M_TWOPI / cycle_len;
+
+	for (uint8_t j = 0; j < array_len; ++j)
 
 	{
-		k = i / j;
-		*ptr_impulse++ = arm_sin_f32((M_TWOPI) *k) ;
+
+		*ptr_impulse++ = arm_sin_f32(k * j);
 
 	}
 
-
 }
-
 
