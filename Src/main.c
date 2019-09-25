@@ -96,7 +96,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 125;
+	TIM_Handle.Init.Prescaler = 40;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -137,15 +137,12 @@ void test_loop2() {
 //	init_chunk(16000, test_freq, &sine_test);
 	sine_sample(&FFT_Input[0], FFT_LEN, i);
 
-
 	if (i < FFT_LEN) {
 		sine_sample(&FFT_Input[0], FFT_LEN, i);
-		i*=2;
+		i *= 2;
 	} else {
 		i = 2;
 	}
-
-
 
 	AUDIODataReady = 1;
 }
@@ -171,13 +168,30 @@ void main(void) {
 		if (AUDIODataReady == 1) {
 
 			StartRFFTTask();
-		} else {
-			test_loop2();
 		}
 
+		/*else {
+		 test_loop2();
+		 }
+		 */
 	}
 //	return 1;
 	/* USER CODE END 3 */
+}
+
+void BSP_Audio_init() {
+
+	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
+	DEFAULT_AUDIO_IN_CHANNEL_NBR);
+	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
+
+}
+
+void BSP_Led_init() {
+	BSP_LED_Init(LED4);
+	BSP_LED_Init(LED5);
+	BSP_LED_Init(LED6);
+	BSP_LED_On(LED4);
 }
 
 void fft_ws2812_Init() {
@@ -186,25 +200,14 @@ void fft_ws2812_Init() {
 	enablefpu();
 	HAL_Init();
 
-	BSP_LED_Init(LED4);
-	BSP_LED_Init(LED5);
-	BSP_LED_Init(LED6);
-	BSP_LED_On(LED4);
 	hann_ptr = Hanning((FFT_LEN), 0);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 
-	/*#ifndef OUTPUT_TEST
-	 BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
-	 DEFAULT_AUDIO_IN_CHANNEL_NBR);
-	 BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
-
-	 #else*/
+	//BSP_Audio_init();
 	test_freq = 100;
 
 	AUDIODataReady = 0;
-
-//#endif
-
+	BSP_Audio_init();
 	visInit();
 
 }

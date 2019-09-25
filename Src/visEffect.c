@@ -110,52 +110,51 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 	static uint8_t volatile * u_ptr;
 	ws_item_ptr = ws2812b_getBufferItem(bs);
 
-	if (ws_item_ptr != NULL) {
-		ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
-		u_ptr = ws_item_ptr->rgb_Buffer_ptr;
-		_Real = fft;
-		arm_mean_f32(mag, array_len, &_mag_mean);
-		arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
-
-		for (uint16_t i = 0; i < (FFT_LEN / 2); ++i) { ///  hard-coded buffer size need runtime evaluation
-
-			if (*(_mag) > 1.0f) {
-				hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
-
-				hsv_struct.s = (*(_Real) / *(_mag));
-				hsv_struct.v = (*(_mag) / mag_max);
-				_Real += 2;
-				_mag++;
-				rgb_struct = HSV2RGB(hsv_struct);
-
-				*u_ptr = (uint8_t) (rgb_struct.r * 255);
-				++u_ptr;
-				*u_ptr = (uint8_t) (rgb_struct.g * 255);
-				++u_ptr;
-				*u_ptr = (uint8_t) (rgb_struct.b * 255);
-				++u_ptr;
-
-			} else {
-				*u_ptr = 0;
-				++u_ptr;
-				*u_ptr = 0;
-				++u_ptr;
-				*u_ptr = 0;
-				++u_ptr;
-				_Real += 2;
-				_mag++;
-			}
-
-		}
-
-		//	ws_item_ptr->WS2812_buf_state = BUFFER_FULL;
-		ws_item_ptr->WS2812_buf_state = WS_BUFFER_FULL;
-		ws_item_ptr = NULL;
-
-		return 1;
-	} else {
+	if (ws_item_ptr == NULL) {
 		return 0;
 	}
+
+	ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
+	u_ptr = ws_item_ptr->rgb_Buffer_ptr;
+	_Real = fft;
+	arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
+
+	for (uint16_t i = 0; i < ((FFT_LEN / 2)-1); ++i) { ///  hard-coded buffer size need runtime evaluation
+		volatile float32_t v_temp = *(_mag);
+		v_temp = pow((v_temp / mag_max),2);
+		if (v_temp > 0.2f) {
+			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
+
+			hsv_struct.s = (*(_Real) / *(_mag));
+			hsv_struct.v = (v_temp);
+			_Real += 2;
+			_mag++;
+			rgb_struct = HSV2RGB(hsv_struct);
+
+			*u_ptr = (uint8_t) (rgb_struct.r * 255);
+			++u_ptr;
+			*u_ptr = (uint8_t) (rgb_struct.g * 255);
+			++u_ptr;
+			*u_ptr = (uint8_t) (rgb_struct.b * 255);
+			++u_ptr;
+
+		} else {
+			*u_ptr = 0;
+			++u_ptr;
+			*u_ptr = 0;
+			++u_ptr;
+			*u_ptr = 0;
+			++u_ptr;
+			_Real += 2;
+			_mag++;
+		}
+	}
+
+	//	ws_item_ptr->WS2812_buf_state = BUFFER_FULL;
+	ws_item_ptr->WS2812_buf_state = WS_BUFFER_FULL;
+	ws_item_ptr = NULL;
+
+	return 1;
 
 }
 

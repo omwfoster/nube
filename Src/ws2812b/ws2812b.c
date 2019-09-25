@@ -181,7 +181,7 @@ static void DMA2_init(void) {
 	HAL_DMA_DeInit(&dmaCC1);
 	HAL_DMA_Init(&dmaCC1);
 	HAL_DMA_Start(&dmaCC1, (uint32_t) ws2812bDmaBitBuffer,
-			(uint32_t) (&WS2812B_PORT->BSRR) + 2, BUFFER_SIZE); //BRR
+			(uint32_t) (&WS2812B_PORT->BSRR) + 2, BUFFER_SIZE);
 
 	// TIM2 CC2 event
 	dmaCC2.Init.Direction = DMA_MEMORY_TO_PERIPH;
@@ -327,7 +327,7 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 	global_BB_Struct.bb_output_state = BB_TRANSFER_COMPLETE;
 	ws2812_reset();
 	NVIC_EnableIRQ(TIM4_IRQn);
-	BSP_AUDIO_IN_Resume();
+	BSP_AUDIO_IN_Resume(); // audio functionality disabled for fixed frequency testing purposes.
 
 #if defined(LED_ORANGE_PORT)
 	LED_ORANGE_PORT->BSRR = LED_ORANGE_PIN << 16;
