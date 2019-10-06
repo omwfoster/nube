@@ -96,7 +96,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 40;
+	TIM_Handle.Init.Prescaler = 200;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -120,32 +120,20 @@ void TIM4_IRQHandler(void)
 	}
 }
 
-void test_loop() {
-
-	init_chunk(16000, test_freq, &sine_test);
-	sine_chunk(&sine_test);
-	copy_chunk(&FFT_Input[0], FFT_LEN, &sine_test);
-	if (test_freq < 16000) {
-		test_freq += 1000;
-	} else {
-		test_freq = 1000;
-	}
-}
-
-uint32_t i = 2;
+volatile uint32_t i = 4;
 void test_loop2() {
-//	init_chunk(16000, test_freq, &sine_test);
-	sine_sample(&FFT_Input[0], FFT_LEN, i);
 
-	if (i < FFT_LEN) {
+	if (i <= FFT_LEN) {
 		sine_sample(&FFT_Input[0], FFT_LEN, i);
 		i *= 2;
 	} else {
-		i = 2;
+		i = 4;
 	}
+
 
 	AUDIODataReady = 1;
 }
+
 void main(void) {
 	cleanbuffers();
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -153,37 +141,38 @@ void main(void) {
 	TIM4_config();
 	test_freq = 4000;
 
-	//memset (FFT_MagBuf_IIR,0,sizeof(FFT_MagBuf_IIR)); //
-
 	while (1) {
 
-		if (FFT_Ready == 1) {
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-			//	cleanbuffers();
-			FFT_Ready = 0;
-			AUDIODataReady = 0;
-			LED_Ready = generate_BB();
+		if (AUDIODataReady == 0)
+		{
+			test_loop2();
 		}
 
-		if (AUDIODataReady == 1) {
-
+		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
 		}
 
-		/*else {
-		 test_loop2();
-		 }
-		 */
+		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
+			LED_Ready = generate_BB();
+		}
+		if (get_BB_status() == 1) {
+			LED_Ready = 0;
+			FFT_Ready = 0;
+			AUDIODataReady = 0;
+		}
+
 	}
-//	return 1;
-	/* USER CODE END 3 */
+
 }
 
 void BSP_Audio_init() {
 
-	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
+	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ,
+	DEFAULT_AUDIO_IN_BIT_RESOLUTION,
 	DEFAULT_AUDIO_IN_CHANNEL_NBR);
-	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0], INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
+	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0],
+	INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
 
 }
 
@@ -196,18 +185,15 @@ void BSP_Led_init() {
 
 void fft_ws2812_Init() {
 
-	sample_runs = 8;
+	sample_runs = INTERNAL_BUFF_SIZE/PCM_OUT_SIZE;
+
 	enablefpu();
 	HAL_Init();
-
-	hann_ptr = Hanning((FFT_LEN), 0);
+	hann_ptr = Hanning((FFT_LEN), 1);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 
-	//BSP_Audio_init();
-	test_freq = 100;
-
 	AUDIODataReady = 0;
-	BSP_Audio_init();
+	//BSP_Audio_init();
 	visInit();
 
 }
@@ -218,8 +204,7 @@ uint8_t StartRFFTTask() {
 
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
-	AUDIODataReady = 0;
+	//	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
 
 	FFT_Ready = 1;
 	return 1;
@@ -245,10 +230,10 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		arm_mult_f32(&float_array[0], &hann_window[ITCounter * PCM_OUT_SIZE],
-				&FFT_Input[ITCounter * PCM_OUT_SIZE], PCM_OUT_SIZE);
+		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
+				&FFT_Input[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < (sample_runs - 1)) {
+		if (ITCounter < (sample_runs)) {
 			ITCounter++;
 
 		} else {
@@ -267,10 +252,10 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		arm_mult_f32(&float_array[0], &hann_window[ITCounter * PCM_OUT_SIZE],
-				&FFT_Input[ITCounter * PCM_OUT_SIZE], PCM_OUT_SIZE);
+		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
+				&FFT_Input[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < (sample_runs - 1)) {
+		if (ITCounter < (sample_runs)) {
 			ITCounter++;
 
 		} else {
@@ -281,26 +266,10 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 	}
 }
 
-void calc_mag_output(float32_t * mag_input, float32_t * mag_output,
-		uint16_t len) {
-
-	float32_t * m_o;
-	float32_t * m_n;
-	m_n = mag_input;
-	m_o = mag_output;
-	for (uint16_t i = 1; i < len; ++i) {
-		if (*m_n > 1.0f) {
-			*m_o = ((*(m_n) * 0.02F) + (*(m_o) * 0.98F));
-		}
-		m_n++;
-		m_o++;
-	}
-}
-
 float32_t *Hanning(uint32_t N, uint8_t itype) {
 	uint32_t half, i, idx, n;
 
-	arm_fill_f32(0.0f, hann_window, N);
+	arm_fill_f32(0.0f, &hann_window[0], N);
 
 	if (itype == 1) //periodic function
 		n = N - 1;

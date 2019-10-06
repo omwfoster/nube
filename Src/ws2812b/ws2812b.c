@@ -27,6 +27,7 @@ uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
 uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
 
 #define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
+//#define BUFFER_SIZE		sizeof(ws2812bDmaBitBuffer)
 
 // Gamma correction table
 const uint8_t gammaTable[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -131,12 +132,8 @@ DMA_HandleTypeDef dmaUpdate;
 DMA_HandleTypeDef dmaCC1;
 DMA_HandleTypeDef dmaCC2;
 
-
 // timer for output rate
 // each full cycle will execute DMA output of the Bitband buffer.
-
-
-
 
 static void DMA2_init(void) {
 
@@ -228,8 +225,8 @@ void ws2812b_init() {
 	global_WS2812_Struct.item[1].rgb_Buffer_ptr = &frame_Buffer2[0];
 	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN) / 2);
 	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN) / 2);
-	memset(&frame_Buffer1[0],0,sizeof(frame_Buffer1));
-	memset(&frame_Buffer1[0],0,sizeof(frame_Buffer2));
+	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer1));
+	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer2));
 
 	//active_ws2812b_item = &ws2812b.item[0];
 	// Need to start the first transfer
@@ -272,7 +269,6 @@ void WS2812_sendbuf_helper() {
 	__HAL_TIM_ENABLE_DMA(&TIM1_handle, TIM_DMA_CC2);
 
 	TIM1->CNT = tim_period - 1;
-
 
 	__HAL_TIM_ENABLE(&TIM1_handle);
 }
@@ -327,7 +323,7 @@ void DMA_TransferCompleteHandler(DMA_HandleTypeDef *DmaHandle) {
 	global_BB_Struct.bb_output_state = BB_TRANSFER_COMPLETE;
 	ws2812_reset();
 	NVIC_EnableIRQ(TIM4_IRQn);
-	BSP_AUDIO_IN_Resume(); // audio functionality disabled for fixed frequency testing purposes.
+	//BSP_AUDIO_IN_Resume(); // audio functionality disabled for fixed frequency testing purposes.
 
 #if defined(LED_ORANGE_PORT)
 	LED_ORANGE_PORT->BSRR = LED_ORANGE_PIN << 16;
@@ -377,15 +373,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 
-
-
 	if ((WS_Buf != NULL)
 			&& ((global_BB_Struct.bb_output_state) == BB_NOT_IN_USE)) {
 
 		global_BB_Struct.bb_output_state = BB_WRITE_LOCKED;
 		WS_Buf->WS2812_buf_state = WS_READ_LOCKED;
 		static uint16_t row = 0;
-		static uint32_t counter = 0;
+//		static uint32_t counter = 0;
 		static uint8_t red;
 		static uint8_t green;
 		static uint8_t blue;
@@ -396,7 +390,7 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		uint32_t volatile * bb_ptr;
 		bb_ptr = bitBand;
 
-		for (counter = 1; counter < FFT_LEN / 2; ++counter) {
+		for (uint32_t counter = 1; counter < FFT_LEN / 2; ++counter) {
 
 			red = *rgb_ptr;
 			green = *rgb_ptr++;
@@ -485,12 +479,10 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 			*bitBand = (invBlue >> 0);
 			bitBand += 16;
 
-
-
 		}
 
 		row = 0;
-		counter = 0;
+		//	counter = 0;
 		red = 0;
 		green = 0;
 		blue = 0;
@@ -499,7 +491,7 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		WS_Buf->WS2812_buf_state = WS_NOT_IN_USE;
 		return 1; //default
 	}
-	return 0 ;
+	return 0;
 }
 
 // kick off DMA output
@@ -508,17 +500,22 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 
 uint8_t ws2812b_handle() {
 
-
 	if (global_BB_Struct.bb_output_state == BB_BUFFER_READY) {
 		NVIC_DisableIRQ(TIM4_IRQn);
-		BSP_AUDIO_IN_Pause();
+//		BSP_AUDIO_IN_Pause();
 		WS2812_sendbuf_helper();
 		return 1;
 	}
 	return 0;
 
+}
 
-
+uint8_t get_BB_status() {
+	if (global_BB_Struct.bb_output_state == BB_TRANSFER_COMPLETE) {
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 void ws2812_reset() {
@@ -549,8 +546,6 @@ void ws2812_reset() {
 
 WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status) {
 
-
-
 	if (global_WS2812_Struct.item[0].WS2812_buf_state == status) {
 
 		return &global_WS2812_Struct.item[0];
@@ -560,9 +555,6 @@ WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status) {
 		return &global_WS2812_Struct.item[1];
 	}
 	return NULL;
-
-
-
 
 }
 #ifdef __cplusplus

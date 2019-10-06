@@ -77,33 +77,18 @@ void visInit() {
 	ws2812b_init();
 }
 
-// TODO : implement smoothing algorithm as a callback
 
-void smooth_rgb(float32_t * mag_input, float32_t * mag_output, uint16_t len) {
-
-	static float32_t * m_o;
-	static float32_t * m_n;
-	m_n = mag_input;
-	m_o = mag_output;
-	for (uint16_t i = 1; i < len; ++i) {
-		*m_o = ((*(m_n) * 0.02F) + (*(m_o) * 0.98F));
-		m_n++;
-		m_o++;
-	}
-}
 
 // Process FFT and populate idle buffer
 
 uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 	static WS2812_BufferItem * ws_item_ptr;
-	static float32_t f32_FFT_len = (float32_t) FFT_LEN;
 	static ws_buf_state bs = WS_NOT_IN_USE;
-	float32_t * _Real;
+	float32_t * _Real = fft;
 	float32_t * _mag = mag;
-	static float32_t _mag_mean;
-	static uint32_t mag_max_i;
-	static float32_t mag_max;
+	uint32_t mag_max_i;
+	float32_t mag_max;
 
 	hsv hsv_struct;
 	volatile rgb rgb_struct;
@@ -116,12 +101,11 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 	ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
 	u_ptr = ws_item_ptr->rgb_Buffer_ptr;
-	_Real = fft;
+
 	arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
 
-	for (uint16_t i = 0; i < ((FFT_LEN / 2)-1); ++i) { ///  hard-coded buffer size need runtime evaluation
-		volatile float32_t v_temp = *(_mag);
-		v_temp = pow((v_temp / mag_max),2);
+	for (uint16_t i = 0; i < (FFT_LEN / 2); ++i) { ///  hard-coded buffer size need runtime evaluation
+		volatile float32_t v_temp = pow((*(_mag) / mag_max),2);
 		if (v_temp > 0.2f) {
 			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
 
