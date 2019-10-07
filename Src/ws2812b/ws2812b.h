@@ -1,7 +1,7 @@
 
 #ifndef WS2812B_H_
 #define WS2812B_H_
-#define FFT_LEN 128
+
 
 
 // GPIO enable command
@@ -12,9 +12,9 @@
 #define WS2812B_PINS (GPIO_PIN_0)
 
 // How many LEDs are in the series - only valid multiples by two
-#define WS2812B_NUMBER_OF_LEDS 64
+#define  64
 
-
+WS2812B_NUMBER_OF_LEDS
 #define WS2812_BUFFER_COUNT 2
 
 // Choose one of the bit-juggling setpixel implementation
@@ -98,6 +98,7 @@ WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status);
 #define varResetBit(var,bit) (Var_ResetBit_BB((uint32_t)&var,bit))
 #define varGetBit(var,bit) (Var_GetBit_BB((uint32_t)&var,bit))
 uint8_t BB_generator(WS2812_BufferItem volatile  * WS_Buf);
+uint8_t get_BB_status();
 
 void ws2812_reset();
 void WS2812_sendbuf_helper();

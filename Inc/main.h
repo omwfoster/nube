@@ -21,7 +21,7 @@
 
 
 #define SAMPLE_RATE_HZ  16000U // Sample rate of the audio in hertz.
-#define FFT_LEN 128
+#define FFT_LEN 256
 #define FFT_BUFFER_SIZE  (FFT_LEN * 2) /* size in bytes of the fft input buffer */
 #define NUM_BLOCKS  (FFT_BUFFER_SIZE / BLOCK_SIZE)
 

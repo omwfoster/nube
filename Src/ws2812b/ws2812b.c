@@ -22,9 +22,9 @@ WS2812_BufferItem * ptr_active_output;
 WS2812_BufferItem * ptr_active_input;
 
 BB_Struct global_BB_Struct;
-uint16_t ws2812bDmaBitBuffer[(24 * FFT_LEN) / 2]; // DMA output array buffer.
-uint8_t frame_Buffer1[3 * FFT_LEN / 2]; // WS2812b working buffer 1
-uint8_t frame_Buffer2[3 * FFT_LEN / 2]; // ws2812b working buffer 2
+uint16_t ws2812bDmaBitBuffer[(24 * WS2812B_NUMBER_OF_LEDS)]; // DMA output array buffer.
+uint8_t frame_Buffer1[3 * WS2812B_NUMBER_OF_LEDS]; // WS2812b working buffer 1
+uint8_t frame_Buffer2[3 * WS2812B_NUMBER_OF_LEDS]; // ws2812b working buffer 2
 
 #define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
 //#define BUFFER_SIZE		sizeof(ws2812bDmaBitBuffer)
@@ -223,8 +223,8 @@ void ws2812b_init() {
 	global_WS2812_Struct.item[1].frameBufferCounter = 0;
 	global_WS2812_Struct.item[0].rgb_Buffer_ptr = &frame_Buffer1[0];
 	global_WS2812_Struct.item[1].rgb_Buffer_ptr = &frame_Buffer2[0];
-	global_WS2812_Struct.item[0].frameBufferSize = (3 * (FFT_LEN) / 2);
-	global_WS2812_Struct.item[1].frameBufferSize = (3 * (FFT_LEN) / 2);
+	global_WS2812_Struct.item[0].frameBufferSize = (3 * WS2812B_NUMBER_OF_LEDS);
+	global_WS2812_Struct.item[1].frameBufferSize = (3 * WS2812B_NUMBER_OF_LEDS);
 	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer1));
 	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer2));
 
@@ -390,7 +390,7 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		uint32_t volatile * bb_ptr;
 		bb_ptr = bitBand;
 
-		for (uint32_t counter = 1; counter < FFT_LEN / 2; ++counter) {
+		for (uint32_t counter = 1; counter < WS2812B_NUMBER_OF_LEDS; ++counter) {
 
 			red = *rgb_ptr;
 			green = *rgb_ptr++;

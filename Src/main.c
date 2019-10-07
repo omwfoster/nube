@@ -58,7 +58,7 @@ uint16_t InternalBuffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFA
 uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
 float32_t float_array[PCM_OUT_SIZE];
 
-uint16_t test_freq = 100;
+
 
 void enablefpu() {
 	__asm volatile(
@@ -120,32 +120,32 @@ void TIM4_IRQHandler(void)
 	}
 }
 
-volatile uint32_t i = 4;
+volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
 void test_loop2() {
 
 	if (i <= FFT_LEN) {
-		sine_sample(&FFT_Input[0], FFT_LEN, i);
-		i *= 2;
+		sine_sample(&FFT_Input[0], FFT_LEN, i); //  calculate sine values for a wave run
+		i *= 2; 								//  multiply by 2 for next run
 	} else {
-		i = 4;
+		i = 4;									//  restart sequence if the sequence were to overflow the
+												//	overall sample length
 	}
-
 
 	AUDIODataReady = 1;
 }
 
 void main(void) {
 	cleanbuffers();
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	fft_ws2812_Init();
-	TIM4_config();
-	test_freq = 4000;
+	TIM4_config(); // timer for LED refresh
+
 
 	while (1) {
 
-		if (AUDIODataReady == 0)
-		{
+		if (AUDIODataReady == 0) {
 			test_loop2();
+			arm_mult_f32(&float_array[0], &hann_window[buff_pos],
+							&FFT_Input[buff_pos], PCM_OUT_SIZE);
 		}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
@@ -185,8 +185,7 @@ void BSP_Led_init() {
 
 void fft_ws2812_Init() {
 
-	sample_runs = INTERNAL_BUFF_SIZE/PCM_OUT_SIZE;
-
+	sample_runs = INTERNAL_BUFF_SIZE / PCM_OUT_SIZE;
 	enablefpu();
 	HAL_Init();
 	hann_ptr = Hanning((FFT_LEN), 1);
@@ -204,7 +203,7 @@ uint8_t StartRFFTTask() {
 
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-	//	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
+	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
 
 	FFT_Ready = 1;
 	return 1;
