@@ -27,7 +27,6 @@ uint8_t frame_Buffer1[3 * WS2812B_NUMBER_OF_LEDS]; // WS2812b working buffer 1
 uint8_t frame_Buffer2[3 * WS2812B_NUMBER_OF_LEDS]; // ws2812b working buffer 2
 
 #define BUFFER_SIZE		(sizeof(ws2812bDmaBitBuffer)/sizeof(uint16_t))
-//#define BUFFER_SIZE		sizeof(ws2812bDmaBitBuffer)
 
 // Gamma correction table
 const uint8_t gammaTable[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -104,7 +104,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 
 	arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
 
-	for (uint16_t i = 0; i < (FFT_LEN / 2); ++i) { ///  hard-coded buffer size need runtime evaluation
+	for (uint16_t i = 0; i < array_len; ++i) { ///  hard-coded buffer size need runtime evaluation
 		volatile float32_t v_temp = pow((*(_mag) / mag_max),2);
 		if (v_temp > 0.2f) {
 			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);

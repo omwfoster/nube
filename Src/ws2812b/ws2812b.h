@@ -12,23 +12,12 @@
 #define WS2812B_PINS (GPIO_PIN_0)
 
 // How many LEDs are in the series - only valid multiples by two
-#define  64
+#define WS2812B_NUMBER_OF_LEDS 64
 
-WS2812B_NUMBER_OF_LEDS
+
 #define WS2812_BUFFER_COUNT 2
 
-// Choose one of the bit-juggling setpixel implementation
-// *******************************************************
-//#define SETPIX_1	// For loop, works everywhere, slow
-//#define SETPIX_2	// Bit band in a loop
-//#define SETPIX_3	// Like SETPIX_1 but with unrolled loop
-#define SETPIX_4	// Fastest copying using bit-banding
 
-
-// DEBUG OUTPUT
-// ********************
-
-// Set during DMA Half and Full transfer IRQ to debug how long IRQ is processing
 #define LED_BLUE_PORT GPIOD
 #define LED_BLUE_PIN GPIO_PIN_15
 
@@ -42,8 +31,7 @@ WS2812B_NUMBER_OF_LEDS
 void ws2812b_init();
 uint8_t ws2812b_handle();
 
-// Library structures
-// ******************
+
 // This value sets number of periods to generate 50uS Treset signal
 #define WS2812_RESET_PERIOD 60
 typedef enum buf_state {WS_READ_LOCKED,WS_WRITE_LOCKED,WS_BUFFER_FULL,WS_NOT_IN_USE,TEST} ws_buf_state;

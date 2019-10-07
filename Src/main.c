@@ -144,8 +144,7 @@ void main(void) {
 
 		if (AUDIODataReady == 0) {
 			test_loop2();
-			arm_mult_f32(&float_array[0], &hann_window[buff_pos],
-							&FFT_Input[buff_pos], PCM_OUT_SIZE);
+
 		}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {

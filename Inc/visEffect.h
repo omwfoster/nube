@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 /* USER CODE BEGIN Includes */
-#define FFT_LEN 128
+
 
 #include <stdint.h>
 #include <stdlib.h>
