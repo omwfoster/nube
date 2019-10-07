@@ -25,6 +25,7 @@
 #define FFT_BUFFER_SIZE  (FFT_LEN * 2) /* size in bytes of the fft input buffer */
 #define NUM_BLOCKS  (FFT_BUFFER_SIZE / BLOCK_SIZE)
 
+
 /* USER CODE BEGIN Private defines */
 
 

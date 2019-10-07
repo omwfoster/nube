@@ -14,7 +14,7 @@ SPI_HandleTypeDef hspi1;
 
 I2S_HandleTypeDef hAudioInI2s;
 
-volatile uint32_t ITCounter = 0; //  buffer position for use in isr
+static volatile uint32_t ITCounter = 0; //  buffer position for use in isr
 volatile uint16_t buff_pos = 0;  // pointer to buffer position
 
 float32_t F_Sum = 0.0f;  // cmsis support function variables
@@ -39,6 +39,8 @@ static bool peq1_abFlag = false;
 /* Two filter instances so we can use one while calculating the coefficients of the other */
 static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 		peq1_coeffsA };
+
+static volatile uint16_t SAMPLE_RUNS = 7;    //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
 float32_t BQ_Input[FFT_LEN]; //
 
@@ -70,7 +72,7 @@ void enablefpu() {
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
 
-uint32_t sample_runs;
+
 
 void cleanbuffers() {
 
@@ -96,7 +98,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 200;
+	TIM_Handle.Init.Prescaler = 40;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -134,18 +136,21 @@ void test_loop2() {
 	AUDIODataReady = 1;
 }
 
+uint8_t volume = 128;
+
 void main(void) {
 	cleanbuffers();
 	fft_ws2812_Init();
 	TIM4_config(); // timer for LED refresh
+	BSP_AUDIO_IN_SetVolume(128);
 
 
 	while (1) {
 
-		if (AUDIODataReady == 0) {
-			test_loop2();
+	//	if (AUDIODataReady == 0) {
+	//		test_loop2();
 
-		}
+	//	}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
@@ -159,6 +164,8 @@ void main(void) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
+			volume /= 2;
+			BSP_AUDIO_IN_SetVolume(volume);
 		}
 
 	}
@@ -184,14 +191,14 @@ void BSP_Led_init() {
 
 void fft_ws2812_Init() {
 
-	sample_runs = INTERNAL_BUFF_SIZE / PCM_OUT_SIZE;
+
 	enablefpu();
 	HAL_Init();
 	hann_ptr = Hanning((FFT_LEN), 1);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 
 	AUDIODataReady = 0;
-	//BSP_Audio_init();
+	BSP_Audio_init();
 	visInit();
 
 }
@@ -231,7 +238,7 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
 				&FFT_Input[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < (sample_runs)) {
+		if (ITCounter < SAMPLE_RUNS) {
 			ITCounter++;
 
 		} else {
@@ -253,7 +260,7 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
 				&FFT_Input[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < (sample_runs)) {
+		if (ITCounter < (SAMPLE_RUNS)) {
 			ITCounter++;
 
 		} else {
