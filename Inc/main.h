@@ -112,6 +112,7 @@ int timer_setup();
 void fft_ws2812_Init();
 void Error_Handler(void);
 void calc_mag_output(float32_t *, float32_t *, uint16_t);
+void drop_volume();
 
 
 

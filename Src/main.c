@@ -40,7 +40,7 @@ static bool peq1_abFlag = false;
 static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 		peq1_coeffsA };
 
-static volatile uint16_t SAMPLE_RUNS = 7;    //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
+static volatile uint16_t SAMPLE_RUNS = 7; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
 float32_t BQ_Input[FFT_LEN]; //
 
@@ -60,8 +60,6 @@ uint16_t InternalBuffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFA
 uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
 float32_t float_array[PCM_OUT_SIZE];
 
-
-
 void enablefpu() {
 	__asm volatile(
 			"  ldr.w r0, =0xE000ED88    \n" /* The FPU enable bits are in the CPACR. */
@@ -71,8 +69,6 @@ void enablefpu() {
 			"  dsb                       \n" /* wait for store to complete */
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
-
-
 
 void cleanbuffers() {
 
@@ -129,14 +125,14 @@ void test_loop2() {
 		sine_sample(&FFT_Input[0], FFT_LEN, i); //  calculate sine values for a wave run
 		i *= 2; 								//  multiply by 2 for next run
 	} else {
-		i = 4;									//  restart sequence if the sequence were to overflow the
-												//	overall sample length
+		i = 4;		//  restart sequence if the sequence were to overflow the
+					//	overall sample length
 	}
 
 	AUDIODataReady = 1;
 }
 
-uint8_t volume = 128;
+
 
 void main(void) {
 	cleanbuffers();
@@ -144,13 +140,12 @@ void main(void) {
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(128);
 
-
 	while (1) {
 
-	//	if (AUDIODataReady == 0) {
-	//		test_loop2();
+		//	if (AUDIODataReady == 0) {
+		//		test_loop2();
 
-	//	}
+		//	}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
@@ -164,12 +159,25 @@ void main(void) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
-			volume /= 2;
-			BSP_AUDIO_IN_SetVolume(volume);
-		}
+		//	drop_volume();
 
+		}
 	}
 
+}
+
+void drop_volume()
+{
+
+	static uint8_t volume = 128;
+	if (volume > 8) {
+			BSP_AUDIO_IN_SetVolume(volume);
+			volume /= 2;
+		} else {
+			BSP_AUDIO_IN_SetVolume(volume -= 8);
+			volume = 96;
+
+		}
 }
 
 void BSP_Audio_init() {
@@ -190,7 +198,6 @@ void BSP_Led_init() {
 }
 
 void fft_ws2812_Init() {
-
 
 	enablefpu();
 	HAL_Init();
