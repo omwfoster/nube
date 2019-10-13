@@ -94,7 +94,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 40;
+	TIM_Handle.Init.Prescaler = 50;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -132,13 +132,11 @@ void test_loop2() {
 	AUDIODataReady = 1;
 }
 
-
-
 void main(void) {
 	cleanbuffers();
 	fft_ws2812_Init();
 	TIM4_config(); // timer for LED refresh
-	BSP_AUDIO_IN_SetVolume(128);
+	BSP_AUDIO_IN_SetVolume(32);
 
 	while (1) {
 
@@ -149,35 +147,36 @@ void main(void) {
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
+		//	float32_t  f = rms_weighting(&FFT_MagBuf[0], (FFT_LEN / 2));
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
+
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),rms_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
 			LED_Ready = generate_BB();
 		}
 		if (get_BB_status() == 1) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
-		//	drop_volume();
+			//	drop_volume();
 
 		}
 	}
 
 }
 
-void drop_volume()
-{
+void drop_volume() {
 
 	static uint8_t volume = 128;
 	if (volume > 8) {
-			BSP_AUDIO_IN_SetVolume(volume);
-			volume /= 2;
-		} else {
-			BSP_AUDIO_IN_SetVolume(volume -= 8);
-			volume = 96;
+		BSP_AUDIO_IN_SetVolume(volume);
+		volume /= 2;
+	} else {
+		BSP_AUDIO_IN_SetVolume(volume -= 8);
+		volume = 96;
 
-		}
+	}
 }
 
 void BSP_Audio_init() {
@@ -210,14 +209,42 @@ void fft_ws2812_Init() {
 
 }
 
+// Provide an attenuation factor for the led output
+// this should clamp down when standard deviation is low so as to
+// focus the outputs on dominant signal, rather than baseline( high pass filter for frequency domain)
+
+// rms current value
+// rms rolling average
+// rms peak
+// standard deviation
+
+float32_t rms_array[5];
+float32_t rms_max = 0.0f;
+float32_t rms_min =0.0f;
+float32_t weight;
+float32_t rms_weighting(float32_t * input_array, uint32_t array_len) {
+
+	static uint8_t counter = 0;
+	static float32_t weighting;
+	static float32_t rolling_avg;
+	arm_rms_f32(input_array, array_len, &rms_array[counter]);
+	(rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
+	(rms_min < rms_array[counter]) ? rms_max : rms_array[counter];
+	arm_mean_f32(&rms_array[0], 5, &rolling_avg);
+	weight = ((rolling_avg - rms_min)/ (rms_max - rms_min));
+	(counter < 4) ? ++counter : 0;
+	return weight;
+
+
+
+}
+
 uint8_t StartRFFTTask() {
 
 	BSP_LED_Toggle(LED5);
-
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
-
 	FFT_Ready = 1;
 	return 1;
 

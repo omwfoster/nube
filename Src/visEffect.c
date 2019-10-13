@@ -81,7 +81,7 @@ void visInit() {
 
 // Process FFT and populate idle buffer
 
-uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
+uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len, float32_t weight) {
 
 	static WS2812_BufferItem * ws_item_ptr;
 	static ws_buf_state bs = WS_NOT_IN_USE;
@@ -110,7 +110,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len) {
 			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
 
 			hsv_struct.s = (*(_Real) / *(_mag));
-			hsv_struct.v = (v_temp);
+			hsv_struct.v = (v_temp) * (weight);
 			_Real += 2;
 			_mag++;
 			rgb_struct = HSV2RGB(hsv_struct);
