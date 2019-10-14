@@ -173,8 +173,9 @@ void drop_volume() {
 		BSP_AUDIO_IN_SetVolume(volume);
 		volume /= 2;
 	} else {
-		BSP_AUDIO_IN_SetVolume(volume -= 8);
-		volume = 96;
+		volume = 128;
+		BSP_AUDIO_IN_SetVolume(volume);
+		volume = 128;
 
 	}
 }
@@ -228,8 +229,8 @@ float32_t rms_weighting(float32_t * input_array, uint32_t array_len) {
 	static float32_t weighting;
 	static float32_t rolling_avg;
 	arm_rms_f32(input_array, array_len, &rms_array[counter]);
-	(rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
-	(rms_min < rms_array[counter]) ? rms_max : rms_array[counter];
+	rms_max = (rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
+	rms_min = (rms_min < rms_array[counter]) ? rms_min : rms_array[counter];
 	arm_mean_f32(&rms_array[0], 5, &rolling_avg);
 	weight = ((rolling_avg - rms_min)/ (rms_max - rms_min));
 	(counter < 4) ? ++counter : 0;
