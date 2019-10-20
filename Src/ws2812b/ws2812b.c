@@ -87,7 +87,7 @@ static void TIM1_init(void) {
 	// This computation of pulse length should work ok,
 	// at some slower core speeds it needs some tuning.
 	tim_period = SystemCoreClock / 800000; // 0,125us period (10 times lower the 1,25us period to have fixed math below)
-	timer_reset_pulse_period = 600; // 60us just to be sure
+	timer_reset_pulse_period = 500; // 60us just to be sure
 
 	uint32_t cc1 = (10 * tim_period) / 36;
 	uint32_t cc2 = (10 * tim_period) / 15;
@@ -389,15 +389,16 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		uint32_t volatile * bb_ptr;
 		bb_ptr = bitBand;
 
-		for (uint32_t counter = 1; counter < WS2812B_NUMBER_OF_LEDS; ++counter) {
+		for (uint32_t counter = 1; counter < WS2812B_NUMBER_OF_LEDS;
+				++counter) {
 
 			red = *rgb_ptr;
 			green = *rgb_ptr++;
 			blue = *rgb_ptr++;
 			// Apply gamma
-			//	red = gammaTable[red];
-			//	green = gammaTable[green];
-			//	blue = gammaTable[blue];
+			red = gammaTable[red];
+			green = gammaTable[green];
+			blue = gammaTable[blue];
 			uint32_t invRed = ~red;
 			uint32_t invGreen = ~green;
 			uint32_t invBlue = ~blue;
@@ -501,7 +502,6 @@ uint8_t ws2812b_handle() {
 
 	if (global_BB_Struct.bb_output_state == BB_BUFFER_READY) {
 		NVIC_DisableIRQ(TIM4_IRQn);
-//		BSP_AUDIO_IN_Pause();
 		WS2812_sendbuf_helper();
 		return 1;
 	}
@@ -519,8 +519,6 @@ uint8_t get_BB_status() {
 
 void ws2812_reset() {
 
-	// Set 50us period for Treset pulse
-	//TIM2->PSC = 1000; // For this long period we need prescaler 1000
 	TIM1->ARR = timer_reset_pulse_period;
 	// Reset the timer
 	TIM1->CNT = 0;

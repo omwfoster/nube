@@ -8,6 +8,7 @@ I2S_HandleTypeDef hi2s3;
 #include "visEffect.h"
 #include "stdbool.h"
 #include "omwof/omwof_test.h"
+#include "omwof/omwof_weight.h"
 
 #define OUTPUT_TEST
 SPI_HandleTypeDef hspi1;
@@ -136,23 +137,23 @@ void main(void) {
 	cleanbuffers();
 	fft_ws2812_Init();
 	TIM4_config(); // timer for LED refresh
-	BSP_AUDIO_IN_SetVolume(32);
+	BSP_AUDIO_IN_SetVolume(64);
 
 	while (1) {
 
-		//	if (AUDIODataReady == 0) {
-		//		test_loop2();
-
-		//	}
+	//		if (AUDIODataReady == 0) {
+	//			test_loop2();
+	//
+	//		}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
-		//	float32_t  f = rms_weighting(&FFT_MagBuf[0], (FFT_LEN / 2));
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
 
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),rms_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
+			//	generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),rms_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),sd_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
 			LED_Ready = generate_BB();
 		}
 		if (get_BB_status() == 1) {
@@ -203,40 +204,9 @@ void fft_ws2812_Init() {
 	HAL_Init();
 	hann_ptr = Hanning((FFT_LEN), 1);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
-
 	AUDIODataReady = 0;
 	BSP_Audio_init();
 	visInit();
-
-}
-
-// Provide an attenuation factor for the led output
-// this should clamp down when standard deviation is low so as to
-// focus the outputs on dominant signal, rather than baseline( high pass filter for frequency domain)
-
-// rms current value
-// rms rolling average
-// rms peak
-// standard deviation
-
-float32_t rms_array[5];
-float32_t rms_max = 0.0f;
-float32_t rms_min =0.0f;
-float32_t weight;
-float32_t rms_weighting(float32_t * input_array, uint32_t array_len) {
-
-	static uint8_t counter = 0;
-	static float32_t weighting;
-	static float32_t rolling_avg;
-	arm_rms_f32(input_array, array_len, &rms_array[counter]);
-	rms_max = (rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
-	rms_min = (rms_min < rms_array[counter]) ? rms_min : rms_array[counter];
-	arm_mean_f32(&rms_array[0], 5, &rolling_avg);
-	weight = ((rolling_avg - rms_min)/ (rms_max - rms_min));
-	(counter < 4) ? ++counter : 0;
-	return weight;
-
-
 
 }
 
