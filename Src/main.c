@@ -95,7 +95,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 50;
+	TIM_Handle.Init.Prescaler = 20;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -141,10 +141,10 @@ void main(void) {
 
 	while (1) {
 
-	//		if (AUDIODataReady == 0) {
-	//			test_loop2();
-	//
-	//		}
+		//		if (AUDIODataReady == 0) {
+		//			test_loop2();
+		//
+		//		}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
@@ -153,7 +153,8 @@ void main(void) {
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
 
 			//	generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),rms_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),sd_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),
+					sd_weighting(&FFT_MagBuf[0], (FFT_LEN / 2)));
 			LED_Ready = generate_BB();
 		}
 		if (get_BB_status() == 1) {
@@ -210,9 +211,21 @@ void fft_ws2812_Init() {
 
 }
 
+float32_t mean_signal = 63555.0f;
+float32_t t_float[FFT_LEN];
+
 uint8_t StartRFFTTask() {
 
 	BSP_LED_Toggle(LED5);
+	static float32_t temp_mean = 0.0f;
+
+	arm_mean_f32(FFT_Input, FFT_LEN, &temp_mean);
+	if (temp_mean < mean_signal) {
+		mean_signal = temp_mean;
+	};
+
+	arm_offset_f32(&FFT_Input[0],(mean_signal *- 1),&t_float[0],FFT_LEN);
+	memcpy(&FFT_Input[0],&t_float[0],FFT_LEN * 4);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);

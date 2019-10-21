@@ -226,14 +226,9 @@ void ws2812b_init() {
 	global_WS2812_Struct.item[1].frameBufferSize = (3 * WS2812B_NUMBER_OF_LEDS);
 	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer1));
 	memset(&frame_Buffer1[0], 0, sizeof(frame_Buffer2));
-
-	//active_ws2812b_item = &ws2812b.item[0];
-	// Need to start the first transfer
 	global_WS2812_Struct.transferComplete = 1;
-
 	global_BB_Struct.bb_output_state = BB_NOT_IN_USE;
 	global_BB_Struct.ws2812bDmaBitBuffer = &ws2812bDmaBitBuffer[0];
-//	memset(&ws2812bDmaBitBuffer[0],0,sizeof(ws2812bDmaBitBuffer) * 2);
 
 }
 
@@ -378,7 +373,6 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		global_BB_Struct.bb_output_state = BB_WRITE_LOCKED;
 		WS_Buf->WS2812_buf_state = WS_READ_LOCKED;
 		static uint16_t row = 0;
-//		static uint32_t counter = 0;
 		static uint8_t red;
 		static uint8_t green;
 		static uint8_t blue;
