@@ -87,6 +87,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len, float
 	static ws_buf_state bs = WS_NOT_IN_USE;
 	float32_t * _Real = fft;
 	float32_t * _mag = mag;
+	float32_t dc_comp = *fft;
 	uint32_t mag_max_i;
 	float32_t mag_max;
 

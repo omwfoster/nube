@@ -212,21 +212,20 @@ void fft_ws2812_Init() {
 
 }
 
-float32_t mean_signal = 63555.0f;
 float32_t t_float[FFT_LEN];
 
-uint8_t StartRFFTTask() {
+void remove_rms_from_wave(float32_t * samples, uint32_t array_length) {
 
 	static float32_t temp_mean = 0.0f;
 
-	//arm_mean_f32(FFT_Input, FFT_LEN, &temp_mean);
-	arm_rms_f32(FFT_Input, FFT_LEN, &temp_mean);
-	if (temp_mean < mean_signal) {
-		mean_signal = temp_mean;
-	};
+	arm_rms_f32(samples, array_length, &temp_mean);
+	arm_offset_f32(samples, (temp_mean * -1), &t_float[0], array_length);  // multiply by -1 for -offset
+	memcpy(samples, &t_float[0], array_length * 4);
 
-	arm_offset_f32(&FFT_Input[0], (mean_signal * -1), &t_float[0], FFT_LEN);
-	memcpy(&FFT_Input[0], &t_float[0], FFT_LEN * 4);
+}
+
+uint8_t StartRFFTTask() {
+//	remove_rms_from_wave(&FFT_Input[0],FFT_LEN);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
