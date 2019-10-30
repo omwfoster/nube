@@ -21,6 +21,9 @@ volatile uint16_t buff_pos = 0;  // pointer to buffer position
 float32_t F_Sum = 0.0f;  // cmsis support function variables
 float32_t max_Value = 0.0;
 uint32_t max_Index = 0;
+float32_t st_dev;
+float32_t st_max = 63566;
+float32_t st_min = 0;
 
 /* Save MEMS ID */
 uint8_t MemsID = 0;
@@ -95,7 +98,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 20;
+	TIM_Handle.Init.Prescaler = 30;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -106,24 +109,12 @@ uint8_t TIM4_config(void)
 	return 1;
 
 }
-void TIM4_IRQHandler(void)
-
-{
-	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
-			{
-		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
-			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
-
-			ws2812b_handle();
-		}
-	}
-}
 
 volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
 void test_loop2() {
 
 	if (i <= FFT_LEN) {
-		sine_sample(&FFT_Input[0], FFT_LEN, i); //  calculate sine values for a wave run
+		sine_sample(&FFT_Input[0], FFT_LEN, i, 5); //  calculate sine values for a wave run
 		i *= 2; 								//  multiply by 2 for next run
 	} else {
 		i = 4;		//  restart sequence if the sequence were to overflow the
@@ -133,11 +124,21 @@ void test_loop2() {
 	AUDIODataReady = 1;
 }
 
+Weight_TypeDef weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
+		rms_weighting_2, "rms_1", 0 }, { sd_weighting, "sd_1", 1 }, {
+		sd_weighting_2, "sd_2", 2 }, };
+
+__IO uint8_t UserPressButton = 0;
+uint8_t weight_profile_index = 0;
+
 void main(void) {
 	cleanbuffers();
 	fft_ws2812_Init();
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(64);
+	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
+	UserPressButton = 0;
+	float32_t weight = 0.0f;
 
 	while (1) {
 
@@ -151,17 +152,16 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-
-			//	generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),rms_weighting(&FFT_MagBuf[0],(FFT_LEN / 2)));
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2),
-					sd_weighting(&FFT_MagBuf[0], (FFT_LEN / 2)));
+			weight = weight_profiles[weight_profile_index].WeightFunc(
+					&FFT_MagBuf[0], (FFT_LEN / 2), &st_dev);
+			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2), weight,
+					st_dev);
 			LED_Ready = generate_BB();
 		}
 		if (get_BB_status() == 1) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
-			//	drop_volume();
 
 		}
 	}
@@ -193,10 +193,11 @@ void BSP_Audio_init() {
 }
 
 void BSP_Led_init() {
+	BSP_LED_Init(LED3);
 	BSP_LED_Init(LED4);
 	BSP_LED_Init(LED5);
 	BSP_LED_Init(LED6);
-	BSP_LED_On(LED4);
+
 }
 
 void fft_ws2812_Init() {
@@ -216,16 +217,16 @@ float32_t t_float[FFT_LEN];
 
 uint8_t StartRFFTTask() {
 
-	BSP_LED_Toggle(LED5);
 	static float32_t temp_mean = 0.0f;
 
-	arm_mean_f32(FFT_Input, FFT_LEN, &temp_mean);
+	//arm_mean_f32(FFT_Input, FFT_LEN, &temp_mean);
+	arm_rms_f32(FFT_Input, FFT_LEN, &temp_mean);
 	if (temp_mean < mean_signal) {
 		mean_signal = temp_mean;
 	};
 
-	arm_offset_f32(&FFT_Input[0],(mean_signal *- 1),&t_float[0],FFT_LEN);
-	memcpy(&FFT_Input[0],&t_float[0],FFT_LEN * 4);
+	arm_offset_f32(&FFT_Input[0], (mean_signal * -1), &t_float[0], FFT_LEN);
+	memcpy(&FFT_Input[0], &t_float[0], FFT_LEN * 4);
 	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
 	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
@@ -330,98 +331,54 @@ float32_t *Hanning(uint32_t N, uint8_t itype) {
 	return (&hann_window[0]);
 }
 
-void BSP_AUDIO_IN_Error_Callback(void) {
-	Error_Handler();
-}
+void TIM4_IRQHandler(void)
 
-/**
- * @brief  This function handles NMI exception.
- * @param  None
- * @retval None
- */
-void NMI_Handler(void) {
-}
+{
+	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
+			{
+		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
 
-/**
- * @brief  This function handles Hard Fault exception.
- * @param  None
- * @retval None
- */
-void HardFault_Handler(void) {
-	/* Go to infinite loop when Hard Fault exception occurs */
-	while (1) {
+			ws2812b_handle();
+		}
 	}
 }
 
-/**
- * @brief  This function handles Memory Manage exception.
- * @param  None
- * @retval None
- */
-void MemManage_Handler(void) {
-	/* Go to infinite loop when Memory Manage exception occurs */
-	while (1) {
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+
+	__IO uint16_t led_i;
+	if (KEY_BUTTON_PIN == GPIO_Pin) {
+
+		if (weight_profile_index < (COUNT_OF_WEIGHTINGS(weight_profiles) - 1)) {
+			++weight_profile_index;
+			for (led_i = LED3; led_i <= LED6; ++led_i)
+				if (led_i == weight_profile_index) {
+					BSP_LED_On(led_i);
+				} else {
+					BSP_LED_Off(led_i);
+				}
+		} else {
+			weight_profile_index = 0;
+		}
 	}
+
 }
 
-/**
- * @brief  This function handles Bus Fault exception.
- * @param  None
- * @retval None
- */
-void BusFault_Handler(void) {
-	/* Go to infinite loop when Bus Fault exception occurs */
-	while (1) {
+void EXTI0_IRQHandler(void) {
+
+	/* EXTI line interrupt detected */
+
+	if (__HAL_GPIO_EXTI_GET_IT(KEY_BUTTON_PIN) != RESET)
+
+	{
+		__HAL_GPIO_EXTI_CLEAR_IT(KEY_BUTTON_PIN);
+
+		HAL_GPIO_EXTI_Callback(KEY_BUTTON_PIN);
+
 	}
+
 }
 
-/**
- * @brief  This function handles Usage Fault exception.
- * @param  None
- * @retval None
- */
-void UsageFault_Handler(void) {
-	/* Go to infinite loop when Usage Fault exception occurs */
-	while (1) {
-	}
-}
-
-/**
- * @brief  This function handles SVCall exception.
- * @param  None
- * @retval None
- */
-void SVC_Handler(void) {
-}
-
-/**
- * @brief  This function handles Debug Monitor exception.
- * @param  None
- * @retval None
- */
-void DebugMon_Handler(void) {
-}
-
-/**
- * @brief  This function handles PendSVC exception.
- * @param  None
- * @retval None
- */
-void PendSV_Handler(void) {
-}
-
-/******************************************************************************/
-/*                 STM32F4xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f40xx.s).                                              */
-/******************************************************************************/
-
-/**
- * @brief  This function handles DMA Stream interrupt request.
- * @param  None
- * @retval None
- */
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);
 }

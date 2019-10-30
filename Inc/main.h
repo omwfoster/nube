@@ -15,6 +15,8 @@
 #include "stm32f4_discovery_audio.h"
 #include "gpio_defines.h"
 #include "omwof/omwof_test.h"
+#include "omwof/omwof_weight.h"
+#include "omwof/omwof_irq.h"
 
 
 
@@ -40,7 +42,7 @@
 #define MEMS_LIS3DSH 0x3F  /* LIS3DSH MEMS Acclerometer ID */
 #define MEMS_LIS302DL 0x3B /* LIS302DL MEMS Acclerometer ID */
 
-// Todo: test  fuctionality
+// Todo: test  functionality
 #define AUDIODATA_SIZE                  2   /* 16-bits audio data size */
 
 /* Audio status definition */
@@ -63,11 +65,6 @@
 
 
 
-
-
-
-
-
 void enablefpu(void);
 
 
@@ -78,15 +75,18 @@ typedef enum
 	BUFFER_OFFSET_FULL,
 }BUFFER_StateTypeDef;
 
+typedef struct{
+	float32_t (*WeightFunc)(float32_t *, uint32_t,float32_t *);
+	uint8_t WeightName[50];
+	uint8_t WeightIndex;
+}Weight_TypeDef;
+#define COUNT_OF_WEIGHTINGS(x)  (sizeof(x)/sizeof(Weight_TypeDef))
 
 
 
 
 
 
-
-/* FFT -------------------------------------------------------------*/
-// todo : Problem with hardfault caused by imprecise data
 
 
 

@@ -43,15 +43,15 @@ void copy_chunk(float32_t * output, uint32_t len, chunk_TypeDef * ts) {
 
 }
 
-void sine_sample(float32_t * output, uint32_t array_len, uint32_t cycle_len) {
+void sine_sample(float32_t * output, uint32_t array_len, uint32_t cycle_len,uint32_t dc_offset) {
 
 	float32_t volatile * next = output;
 
-	volatile float32_t k = M_TWOPI / cycle_len;
+	float32_t k = M_TWOPI / cycle_len;
 
 	for (uint8_t j = 0; j < (cycle_len); ++j)
 	{
-		*next = arm_sin_f32(k * j);
+		*next = ((arm_sin_f32(k * j))+ dc_offset);
 		next++;
 	}
 

@@ -36,7 +36,7 @@ void visInit();
 void visHandle();
 uint8_t setBuffer_BaseAddress(uint8_t,uint8_t *,uint32_t);  //give base address  (buffer number,base address,buffer length)
 void visInit();
-uint8_t generate_RGB(float32_t *,float32_t * ,uint32_t,float32_t);
+uint8_t generate_RGB(float32_t *,float32_t * ,uint32_t,float32_t,float32_t);
 
 
 

@@ -14,8 +14,10 @@
 
 
 
-float32_t rms_weighting(float32_t *, uint32_t);
-float32_t sd_weighting(float32_t * input_array, uint32_t array_len);
+float32_t rms_weighting(float32_t * input_array, uint32_t,float32_t *);
+float32_t rms_weighting_2(float32_t * input_array, uint32_t,float32_t *);
+float32_t sd_weighting(float32_t * input_array, uint32_t,float32_t *);
+float32_t sd_weighting_2(float32_t * input_array, uint32_t,float32_t *);
 
 
 

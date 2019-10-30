@@ -25,7 +25,7 @@ typedef struct testsample_TypeDef {
 uint8_t init_chunk(uint32_t,uint32_t,chunk_TypeDef *);
 void sine_chunk(chunk_TypeDef *);
 void copy_chunk(float32_t * , uint32_t, chunk_TypeDef *);
-void sine_sample(float32_t * , uint32_t,uint32_t);
+void sine_sample(float32_t * , uint32_t,uint32_t,uint32_t);
 
 
 
