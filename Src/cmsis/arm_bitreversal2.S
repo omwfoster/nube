@@ -135,7 +135,8 @@ arm_bitreversal_16_0 LABEL
 #else
 
 arm_bitreversal_32 PROC
-	ADDS     r3,r1,#1
+
+
 	CMP      r3,#1
 	IT       LS
 	BXLS     lr

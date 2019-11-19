@@ -14,6 +14,7 @@ uint8_t w_pos;
 
 extern WS2812_BufferItem * ws2812b_getBufferItem(ws_buf_state status);
 
+
 rgb HSV2RGB(hsv in) {
 	float32_t hh, p, q, t, ff;
 	uint16_t i;
@@ -79,9 +80,10 @@ void visInit() {
 
 
 
+
 // Process FFT and populate idle buffer
 
-uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len, float32_t weight,float32_t st_dev) {
+uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t array_len, float32_t weight) {
 
 	static WS2812_BufferItem * ws_item_ptr;
 	static ws_buf_state bs = WS_NOT_IN_USE;
@@ -103,24 +105,26 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len, float
 	ws_item_ptr->WS2812_buf_state = WS_WRITE_LOCKED;
 	u_ptr = ws_item_ptr->rgb_Buffer_ptr;
 
-	arm_max_f32(mag, array_len, &mag_max, &mag_max_i);
+
 
 	for (uint16_t i = 1; i < array_len; ++i) { ///  hard-coded buffer size need runtime evaluation
-		volatile float32_t v_temp =  *(_mag)/ (mag_max);
-		if (v_temp > 0.05f) {
+	//	volatile float32_t v_temp =  *(_mag)/ (mag_max);
+		if (*_db > 0.80f) {
 			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
 
+
 			hsv_struct.s = (*(_Real) / *(_mag));
-			hsv_struct.v = (*(_mag) / (* fft));
+			hsv_struct.v = (* _db )*pow(weight,2);
 			_Real += 2;
 			_mag++;
+			_db++;
 			rgb_struct = HSV2RGB(hsv_struct);
 
-			*u_ptr = (uint8_t) (rgb_struct.r * 255)*st_dev/pow(weight,2) ;
+			*u_ptr = (uint8_t) (rgb_struct.r * 255) ;
 			++u_ptr;
-			*u_ptr = (uint8_t) (rgb_struct.g * 255)*st_dev/pow(weight,2) ;
+			*u_ptr = (uint8_t) (rgb_struct.g * 255) ;
 			++u_ptr;
-			*u_ptr = (uint8_t) (rgb_struct.b * 255)*st_dev/pow(weight,2) ;
+			*u_ptr = (uint8_t) (rgb_struct.b * 255) ;
 			++u_ptr;
 
 		} else {
@@ -132,6 +136,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag, uint32_t array_len, float
 			++u_ptr;
 			_Real += 2;
 			_mag++;
+			_db++;
 		}
 	}
 

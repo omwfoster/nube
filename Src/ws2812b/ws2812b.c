@@ -504,7 +504,7 @@ uint8_t ws2812b_handle() {
 }
 
 uint8_t get_BB_status() {
-	if (global_BB_Struct.bb_output_state == BB_TRANSFER_COMPLETE) {
+	if (global_BB_Struct.bb_output_state == (BB_TRANSFER_COMPLETE)) {
 		return 1;
 	} else {
 		return 0;

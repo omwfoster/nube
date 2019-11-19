@@ -44,14 +44,12 @@ static bool peq1_abFlag = false;
 static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 		peq1_coeffsA };
 
-static volatile uint16_t SAMPLE_RUNS = 7; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
+static const uint16_t SAMPLE_RUNS = 16; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
-float32_t BQ_Input[FFT_LEN]; //
-
-float32_t FFT_Input[FFT_LEN]; //
-float32_t FFT_Bins[FFT_LEN];
-float32_t FFT_MagBuf[FFT_LEN / 2]; //
-float32_t FFT_MagBuf_IIR[FFT_LEN / 2]; //
+float32_t fft_input_array[FFT_LEN]; //
+float32_t fft_output_bins[FFT_LEN];
+float32_t mag_output_bins[FFT_LEN / 2]; //
+float32_t db_output_bins[FFT_LEN / 2]; //
 
 chunk_TypeDef sine_test;
 
@@ -60,9 +58,9 @@ float32_t hann_window[FFT_LEN];
 float32_t hann_buff[FFT_LEN];
 
 // sample data
-uint16_t InternalBuffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFAULT_AUDIO_IN_FREQ/16000 *DEFAULT_AUDIO_IN_CHANNEL_NBR
-uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
-float32_t float_array[PCM_OUT_SIZE];
+uint16_t internal_buffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFAULT_AUDIO_IN_FREQ/16000 *DEFAULT_AUDIO_IN_CHANNEL_NBR
+uint16_t PCM_Buf[PCM_OUT_SIZE * 2]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
+float32_t float_array[PCM_OUT_SIZE * 2];
 
 void enablefpu() {
 	__asm volatile(
@@ -78,12 +76,12 @@ void cleanbuffers() {
 
 #ifndef OUTPUT_TEST
 
-	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
+	arm_fill_f32(0.0f, fft_input_array, FFT_LEN);
 
 #endif
-	arm_fill_f32(0.0f, BQ_Input, FFT_LEN);
-	arm_fill_f32(0.0f, FFT_Bins, FFT_LEN);
-	arm_fill_f32(0.0f, FFT_MagBuf, FFT_LEN / 2);
+
+	arm_fill_f32(0.0f, fft_output_bins, FFT_LEN);
+	arm_fill_f32(0.0f, mag_output_bins, FFT_LEN / 2);
 
 }
 
@@ -98,7 +96,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 30;
+	TIM_Handle.Init.Prescaler = 25;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -114,7 +112,7 @@ volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -
 void test_loop2() {
 
 	if (i <= FFT_LEN) {
-		sine_sample(&FFT_Input[0], FFT_LEN, i, 5); //  calculate sine values for a wave run
+		sine_sample(&fft_input_array[0], FFT_LEN, i, 0); //  calculate sine values for a wave run
 		i *= 2; 								//  multiply by 2 for next run
 	} else {
 		i = 4;		//  restart sequence if the sequence were to overflow the
@@ -125,8 +123,8 @@ void test_loop2() {
 }
 
 Weight_TypeDef weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
-		rms_weighting_2, "rms_1", 0 }, { sd_weighting, "sd_1", 1 }, {
-		sd_weighting_2, "sd_2", 2 }, };
+		rms_weighting_2, "rms_1", 2 }, { sd_weighting, "sd__1", 1 }, {
+		sd_weighting_2, "sd__2", 3 }, };
 
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
@@ -142,23 +140,26 @@ void main(void) {
 
 	while (1) {
 
-		//		if (AUDIODataReady == 0) {
-		//			test_loop2();
-		//
-		//		}
+	//	if (AUDIODataReady == 0) {
+	//		test_loop2();
+	//		AUDIODataReady = 1;
+
+	//	}
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
+
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
 			weight = weight_profiles[weight_profile_index].WeightFunc(
-					&FFT_MagBuf[0], (FFT_LEN / 2), &st_dev);
-			generate_RGB(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2), weight,
-					st_dev);
+					&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
+
+			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
+					&db_output_bins[0], (FFT_LEN / 2), weight);
 			LED_Ready = generate_BB();
 		}
-		if (get_BB_status() == 1) {
+		if (get_BB_status(BB_TRANSFER_COMPLETE) == 1) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
@@ -187,7 +188,7 @@ void BSP_Audio_init() {
 	BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ,
 	DEFAULT_AUDIO_IN_BIT_RESOLUTION,
 	DEFAULT_AUDIO_IN_CHANNEL_NBR);
-	BSP_AUDIO_IN_Record((uint16_t *) &InternalBuffer[0],
+	BSP_AUDIO_IN_Record((uint16_t *) &internal_buffer[0],
 	INTERNAL_BUFF_SIZE); // start reading pdm data into buffer
 
 }
@@ -212,23 +213,18 @@ void fft_ws2812_Init() {
 
 }
 
-float32_t t_float[FFT_LEN];
-
-void remove_rms_from_wave(float32_t * samples, uint32_t array_length) {
-
-	static float32_t temp_mean = 0.0f;
-
-	arm_rms_f32(samples, array_length, &temp_mean);
-	arm_offset_f32(samples, (temp_mean * -1), &t_float[0], array_length);  // multiply by -1 for -offset
-	memcpy(samples, &t_float[0], array_length * 4);
-
-}
+float32_t max_db;
+float32_t min_db;
 
 uint8_t StartRFFTTask() {
-//	remove_rms_from_wave(&FFT_Input[0],FFT_LEN);
-	arm_rfft_fast_f32(&rfft_s, &FFT_Input[0], &FFT_Bins[0], 0);
-	arm_cmplx_mag_f32(&FFT_Bins[0], &FFT_MagBuf[0], (FFT_LEN / 2));
-	arm_fill_f32(0.0f, FFT_Input, FFT_LEN);
+
+	//remove_rms_from_wave(&fft_input_array[0], FFT_LEN);
+	arm_rfft_fast_f32(&rfft_s, &fft_input_array[0], &fft_output_bins[0], 0);
+	arm_cmplx_mag_f32(&fft_output_bins[0], &mag_output_bins[0], (FFT_LEN / 2));
+	mag2db(&mag_output_bins[0], &db_output_bins[0], FFT_LEN / 2);
+	shift_db_to_100(&db_output_bins[0], FFT_LEN / 2);
+	normalize_db(&db_output_bins[0], FFT_LEN / 2);
+	arm_fill_f32(0.0f, &fft_input_array[0], FFT_LEN);
 	FFT_Ready = 1;
 	return 1;
 
@@ -248,15 +244,15 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 	if (AUDIODataReady == 0) {
 		buff_pos = ITCounter * PCM_OUT_SIZE;
 		BSP_AUDIO_IN_PDMToPCM(
-				(uint16_t *) &InternalBuffer[INTERNAL_BUFF_SIZE / 2],
+				(uint16_t *) &internal_buffer[INTERNAL_BUFF_SIZE / 2],
 				(uint16_t *) &PCM_Buf[0]);
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
 		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
-				&FFT_Input[buff_pos], PCM_OUT_SIZE);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < SAMPLE_RUNS) {
+		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;
 
 		} else {
@@ -271,14 +267,14 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 	if (AUDIODataReady == 0) {
 		buff_pos = ITCounter * PCM_OUT_SIZE;
 		/* PDM to PCM data convert */
-		BSP_AUDIO_IN_PDMToPCM((uint16_t *) &InternalBuffer[0],
+		BSP_AUDIO_IN_PDMToPCM((uint16_t *) &internal_buffer[0],
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
 		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
-				&FFT_Input[buff_pos], PCM_OUT_SIZE);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
-		if (ITCounter < (SAMPLE_RUNS)) {
+		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;
 
 		} else {
@@ -350,6 +346,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 		if (weight_profile_index < (COUNT_OF_WEIGHTINGS(weight_profiles) - 1)) {
 			++weight_profile_index;
+			clean_weight();
 			for (led_i = LED3; led_i <= LED6; ++led_i)
 				if (led_i == weight_profile_index) {
 					BSP_LED_On(led_i);

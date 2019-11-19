@@ -160,13 +160,13 @@
 
 /* AudioFreq * DataSize (2 bytes) * NumChannels (Stereo: 2) */
 
-#define DEFAULT_AUDIO_IN_FREQ                 16000U
+#define DEFAULT_AUDIO_IN_FREQ                 8000U
 #define DEFAULT_AUDIO_IN_BIT_RESOLUTION       16
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR          1 /* Mono = 1, Stereo = 2 */
 #define DEFAULT_AUDIO_IN_VOLUME               32
 
 /* PDM buffer input size */
-#define INTERNAL_BUFF_SIZE                    128*DEFAULT_AUDIO_IN_FREQ/16000*DEFAULT_AUDIO_IN_CHANNEL_NBR
+#define INTERNAL_BUFF_SIZE                    128*DEFAULT_AUDIO_IN_FREQ/8000*DEFAULT_AUDIO_IN_CHANNEL_NBR
 /* PCM buffer output size */
 #define PCM_OUT_SIZE                          DEFAULT_AUDIO_IN_FREQ/1000
 #define CHANNEL_DEMUX_MASK                    0x55
