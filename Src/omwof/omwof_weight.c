@@ -30,6 +30,10 @@ float32_t db_min;
 float32_t db_mean;
 float32_t db_running_mean;
 
+Weight_TypeDef Weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
+		rms_weighting_2, "rms_1", 2 }, { sd_weighting, "sd__1", 1 }, {
+		sd_weighting_2, "sd__2", 3 }, };
+
 void clean_weight() {
 
 	rms_max = 0.0f;
@@ -109,7 +113,7 @@ void shift_db_to_100(float32_t * db_array, uint32_t array_len) {
 
 void normalize_db(float32_t * dB_array, uint32_t array_len) {
 	static float32_t min;
-	uint32_t * pIndex;
+	uint32_t  pIndex;
 	arm_scale_f32(dB_array, 0.01f, &shift_dB_array[0], array_len);
 	arm_min_f32(shift_dB_array, array_len, &min, &pIndex);
 	arm_offset_f32(shift_dB_array, (-1.0*min), dB_array, array_len);

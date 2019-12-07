@@ -17,6 +17,7 @@
 #include "omwof/omwof_test.h"
 #include "omwof/omwof_weight.h"
 #include "omwof/omwof_irq.h"
+#include "omwof/omwof_lcd.h"
 
 
 
@@ -89,10 +90,11 @@ typedef enum
 /* ----------------------------------------------------------------------
  ** FIR Coefficients buffer generated using fir1() MATLAB function.
  ** fir1(28, 6/24) *  * ------------------------------------------------------------------- */
-float32_t *Hanning(uint32_t, uint8_t);
+//extern float32_t *Hanning(float32_t *,uint32_t, uint8_t);
+extern float32_t *hann_ptr;
 float32_t *avg_weighting();
 float32_t *rolling_avg();
-float32_t *hann_ptr;
+
 
 
 void PCM_to_Float(uint16_t *, float32_t *, uint16_t);

@@ -9,6 +9,9 @@ I2S_HandleTypeDef hi2s3;
 #include "stdbool.h"
 #include "omwof/omwof_test.h"
 #include "omwof/omwof_weight.h"
+#include "omwof/omwof_window.h"
+#include "omwof/omwof_menu.h"
+#include "omwof/omwof_button.h"
 
 #define OUTPUT_TEST
 SPI_HandleTypeDef hspi1;
@@ -47,6 +50,7 @@ static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 static const uint16_t SAMPLE_RUNS = 16; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
 float32_t fft_input_array[FFT_LEN]; //
+float32_t fft_temp_array[FFT_LEN]; //
 float32_t fft_output_bins[FFT_LEN];
 float32_t mag_output_bins[FFT_LEN / 2]; //
 float32_t db_output_bins[FFT_LEN / 2]; //
@@ -54,7 +58,7 @@ float32_t db_output_bins[FFT_LEN / 2]; //
 chunk_TypeDef sine_test;
 
 // hanning windowing functions for sample blocks.
-float32_t hann_window[FFT_LEN];
+float32_t array_window[FFT_LEN];
 float32_t hann_buff[FFT_LEN];
 
 // sample data
@@ -96,7 +100,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 25;
+	TIM_Handle.Init.Prescaler = 30;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -107,6 +111,51 @@ uint8_t TIM4_config(void)
 	return 1;
 
 }
+
+#define UDG	0
+
+void add_ui()
+{
+	menu_typedef * m = add_menu("window", 0);
+	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
+	tf_window->func_window = &Hamming;
+	add_window_callback(m, "hamming", tf_window);
+	tf_window = malloc(sizeof(typedef_func_union));
+	tf_window->func_window = &Blackman;
+	add_window_callback(m, "Blackman", tf_window);
+	tf_window = malloc(sizeof(typedef_func_union));
+	tf_window->func_window = &Kaiser;
+	add_window_callback(m, "Kaiser", tf_window);
+	tf_window = malloc(sizeof(typedef_func_union));
+	tf_window->func_window = &Hanning;
+	add_window_callback(m, "Hanning", tf_window);
+}
+
+void init_lcd() {
+
+	char udg[] = { 0x00, 0x00, 0x0a, 0x00, 0x11, 0x0e, 0x00, 0x00 };
+
+	hd44780_init(GPIOE, GPIO_PIN_7, GPIO_PIN_8, GPIO_PIN_9, GPIO_PIN_10,
+	GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_13, HD44780_LINES_2, HD44780_FONT_5x8);
+
+	hd44780_init_brightness();
+	hd44780_brightness(85);
+	hd44780_init_contrast();
+	hd44780_contrast(50);
+
+	hd44780_cgram(UDG, udg);
+	hd44780_position(0, 1);
+	hd44780_print("Hello World! ");
+	hd44780_put(UDG);
+	hd44780_display(true, false, false);
+	add_ui();
+
+
+
+}
+
+
+
 
 volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
 void test_loop2() {
@@ -122,16 +171,13 @@ void test_loop2() {
 	AUDIODataReady = 1;
 }
 
-Weight_TypeDef weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
-		rms_weighting_2, "rms_1", 2 }, { sd_weighting, "sd__1", 1 }, {
-		sd_weighting_2, "sd__2", 3 }, };
-
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
 
 void main(void) {
 	cleanbuffers();
 	fft_ws2812_Init();
+	init_lcd();
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(64);
 	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
@@ -140,11 +186,14 @@ void main(void) {
 
 	while (1) {
 
-	//	if (AUDIODataReady == 0) {
-	//		test_loop2();
-	//		AUDIODataReady = 1;
+		/*	if (AUDIODataReady == 0) {
+		 test_loop2();
+		 //	arm_mult_f32(&fft_input_array[0], hann_window,
+		 //					&fft_temp_array[0], FFT_LEN);
+		 //	memcpy(&fft_input_array[0],&fft_temp_array[0],(FFT_LEN * 4));
+		 AUDIODataReady = 1;
 
-	//	}
+		 }*/
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();
@@ -152,10 +201,11 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight = weight_profiles[weight_profile_index].WeightFunc(
-					&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
+			//		weight = weight_profiles[weight_profile_index].WeightFunc(
+			//				&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
+			//	&db_output_bins[0], (FFT_LEN / 2), weight);
 					&db_output_bins[0], (FFT_LEN / 2), weight);
 			LED_Ready = generate_BB();
 		}
@@ -201,11 +251,12 @@ void BSP_Led_init() {
 
 }
 
+extern Window_TypeDef Window_profiles[5];
 void fft_ws2812_Init() {
 
 	enablefpu();
 	HAL_Init();
-	hann_ptr = Hanning((FFT_LEN), 1);
+	Window_profiles[0].WindowFunc(&array_window[0], (FFT_LEN));
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	AUDIODataReady = 0;
 	BSP_Audio_init();
@@ -218,7 +269,6 @@ float32_t min_db;
 
 uint8_t StartRFFTTask() {
 
-	//remove_rms_from_wave(&fft_input_array[0], FFT_LEN);
 	arm_rfft_fast_f32(&rfft_s, &fft_input_array[0], &fft_output_bins[0], 0);
 	arm_cmplx_mag_f32(&fft_output_bins[0], &mag_output_bins[0], (FFT_LEN / 2));
 	mag2db(&mag_output_bins[0], &db_output_bins[0], FFT_LEN / 2);
@@ -249,7 +299,7 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
+		arm_mult_f32(&float_array[0], &array_window[buff_pos],
 				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
@@ -271,7 +321,7 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
 		PCM_OUT_SIZE);
-		arm_mult_f32(&float_array[0], &hann_window[buff_pos],
+		arm_mult_f32(&float_array[0], &array_window[buff_pos],
 				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
@@ -283,47 +333,6 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
 		}
 	}
-}
-
-float32_t *Hanning(uint32_t N, uint8_t itype) {
-	uint32_t half, i, idx, n;
-
-	arm_fill_f32(0.0f, &hann_window[0], N);
-
-	if (itype == 1) //periodic function
-		n = N - 1;
-	else
-		n = N;
-
-	if (n % 2 == 0) {
-		half = n / 2;
-		for (i = 0; i < half; i++) //CALC_HANNING   Calculates Hanning window samples.
-			hann_window[i] = 0.5 * (1 - cos(2 * PI * (i + 1) / (n + 1)));
-
-		idx = half - 1;
-		for (i = half; i < n; i++) {
-			hann_window[i] = hann_window[idx];
-			idx--;
-		}
-	} else {
-		half = (n + 1) / 2;
-		for (i = 0; i < half; i++) //CALC_HANNING   Calculates Hanning window samples.
-			hann_window[i] = 0.5 * (1 - cos(2 * PI * (i + 1) / (n + 1)));
-
-		idx = half - 2;
-		for (i = half; i < n; i++) {
-			hann_window[i] = hann_window[idx];
-			idx--;
-		}
-	}
-
-	if (itype == 1) //periodic function
-			{
-		for (i = N - 1; i >= 1; i--)
-			hann_window[i] = hann_window[i - 1];
-		hann_window[0] = 0.0;
-	}
-	return (&hann_window[0]);
 }
 
 void TIM4_IRQHandler(void)
@@ -339,42 +348,6 @@ void TIM4_IRQHandler(void)
 	}
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-
-	__IO uint16_t led_i;
-	if (KEY_BUTTON_PIN == GPIO_Pin) {
-
-		if (weight_profile_index < (COUNT_OF_WEIGHTINGS(weight_profiles) - 1)) {
-			++weight_profile_index;
-			clean_weight();
-			for (led_i = LED3; led_i <= LED6; ++led_i)
-				if (led_i == weight_profile_index) {
-					BSP_LED_On(led_i);
-				} else {
-					BSP_LED_Off(led_i);
-				}
-		} else {
-			weight_profile_index = 0;
-		}
-	}
-
-}
-
-void EXTI0_IRQHandler(void) {
-
-	/* EXTI line interrupt detected */
-
-	if (__HAL_GPIO_EXTI_GET_IT(KEY_BUTTON_PIN) != RESET)
-
-	{
-		__HAL_GPIO_EXTI_CLEAR_IT(KEY_BUTTON_PIN);
-
-		HAL_GPIO_EXTI_Callback(KEY_BUTTON_PIN);
-
-	}
-
-}
-
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);
 }
@@ -387,29 +360,3 @@ void _Error_Handler(char *file, int line) {
 	/* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
-/**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
-void assert_failed(uint8_t* file, uint32_t line)
-{
-	/* USER CODE BEGIN 6 */
-	/* User can add his own implementation to report the file name and line number,
-	 tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	/* USER CODE END 6 */
-}
-#endif /* USE_FULL_ASSERT */
-
-/**
- * @}
- */
-
-/**
- * @}
- */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

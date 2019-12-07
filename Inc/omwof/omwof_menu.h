@@ -1,0 +1,63 @@
+/*
+ * menu.h
+ *
+ *  Created on: 2 Dec 2019
+ *      Author: oli
+ */
+
+#ifndef OMWOF_OMWOF_MENU_H_
+#define OMWOF_OMWOF_MENU_H_
+
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <arm_math.h>
+
+typedef enum menu_type {
+	WEIGHT_FOLDER, WINDOW_FOLDER
+} enum_menu_type;
+
+
+
+
+typedef union func_union{
+	float32_t (*func_weight)(float32_t *, uint32_t,float32_t *);
+	float32_t (*func_window)(float32_t *, uint32_t);
+
+}typedef_func_union;
+
+
+typedef struct callback {
+	typedef_func_union * callback_ptr;
+	char *  callback_name;
+	void * next_ptr;
+}callback_typedef;
+
+
+
+typedef struct user_menu
+{
+	char * folder_name;
+	callback_typedef * callback_head;
+
+
+
+}menu_typedef;
+
+extern menu_typedef *  toplevel_menu[];
+
+menu_typedef * add_menu(const char * menu_title,uint8_t index);
+uint8_t add_weight_callback(menu_typedef * menu, char * callback_name,
+		typedef_func_union * t_func);
+
+uint8_t add_window_callback(menu_typedef * menu, char * callback_name,
+		typedef_func_union * t_func);
+
+
+
+//void menu_add_callback((void*)func_ptr);
+
+
+
+
+#endif /* OMWOF_OMWOF_MENU_H_ */

@@ -19,6 +19,8 @@ typedef struct{
 	uint8_t WeightIndex;
 }Weight_TypeDef;
 #define COUNT_OF_WEIGHTINGS(x)  (sizeof(x)/sizeof(Weight_TypeDef))
+#define STRUCT_COUNT(x,struct_typedef) (sizeof(x)/sizeof(struct_typedef))
+extern Weight_TypeDef Weight_profiles[5];
 
 
 
