@@ -18,12 +18,8 @@
 #include "omwof/omwof_window.h"
 #include "omwof/omwof_weight.h"
 
-extern Window_TypeDef  Window_profiles[];
-uint8_t active_Window_index;
-extern Weight_TypeDef Weight_profiles[];
-uint8_t active_Weight_index;
 
-
+uint8_t init_button();
 
 
 #endif /* OMWOF_OMWOF_BUTTON_H_ */

@@ -114,8 +114,8 @@ uint8_t TIM4_config(void)
 
 #define UDG	0
 
-void add_ui()
-{
+menu_typedef * toplevel_menu[2];
+void add_ui() {
 	menu_typedef * m = add_menu("window", 0);
 	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Hamming;
@@ -129,6 +129,22 @@ void add_ui()
 	tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Hanning;
 	add_window_callback(m, "Hanning", tf_window);
+	toplevel_menu[0] = m;
+
+	m = add_menu("weight", 0);
+	typedef_func_union * tf_weight = malloc(sizeof(typedef_func_union));
+	tf_weight->func_weight = &rms_weighting;
+	add_weight_callback(m, "rms_weighting", tf_weight);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_weight->func_weight = &rms_weighting_2;
+	add_weight_callback(m, "rms_weighting_2", tf_weight);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_weight->func_weight = &sd_weighting;
+	add_weight_callback(m, "sd_weighting", tf_weight);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_weight->func_weight = &sd_weighting_2;
+	add_weight_callback(m, "sd_weighting", tf_weight);
+	toplevel_menu[1] = m;
 }
 
 void init_lcd() {
@@ -148,14 +164,9 @@ void init_lcd() {
 	hd44780_print("Hello World! ");
 	hd44780_put(UDG);
 	hd44780_display(true, false, false);
-	add_ui();
-
 
 
 }
-
-
-
 
 volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
 void test_loop2() {
@@ -176,13 +187,16 @@ uint8_t weight_profile_index = 0;
 
 void main(void) {
 	cleanbuffers();
+	//init_lcd();
+	add_ui();
 	fft_ws2812_Init();
-	init_lcd();
+
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(64);
-	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
+
 	UserPressButton = 0;
 	float32_t weight = 0.0f;
+	init_button();
 
 	while (1) {
 
@@ -201,8 +215,8 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			//		weight = weight_profiles[weight_profile_index].WeightFunc(
-			//				&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
+			weight =toplevel_menu[0]->active_callback->callback_ptr->func_weight(
+							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
 			//	&db_output_bins[0], (FFT_LEN / 2), weight);
@@ -256,7 +270,11 @@ void fft_ws2812_Init() {
 
 	enablefpu();
 	HAL_Init();
-	Window_profiles[0].WindowFunc(&array_window[0], (FFT_LEN));
+
+	toplevel_menu[1]
+				  ->active_callback
+				  ->callback_ptr->func_window(&array_window[0], (FFT_LEN));
+
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	AUDIODataReady = 0;
 	BSP_Audio_init();

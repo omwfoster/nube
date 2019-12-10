@@ -6,6 +6,7 @@
  */
 
 #include <omwof/omwof_button.h>
+#include "omwof/omwof_menu.h"
 #include "omwof/omwof_window.h"
 #include "omwof/omwof_weight.h"
 
@@ -18,15 +19,30 @@ typedef enum button_state {
 typedef enum button_event {
 	NO_EVENT, SHORT_PRESS, LONG_PRESS, EXTENDED_PRESS
 } enum_button_event;
+
+
 enum_button_state user_button = NOT_IN_USE;
 enum_button_event user_event = NO_EVENT;
+extern menu_typedef * toplevel_menu[];
+menu_typedef * active_menu = NULL;
+
+uint8_t init_button() {
+	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
+
+	if (toplevel_menu == NULL) {
+		 active_menu = toplevel_menu[0];
+	}
+}
 
 uint8_t process_event(enum_button_event evt) {
 
 	switch (evt) {
 	case SHORT_PRESS:
+		active_menu->active_callback = active_menu->active_callback->next_ptr;
 		break;
 	case LONG_PRESS:
+		if(active_menu==toplevel_menu[0]){active_menu = toplevel_menu[1];}
+		else{active_menu = toplevel_menu[0];}
 		break;
 	case EXTENDED_PRESS:
 		break;
@@ -34,8 +50,6 @@ uint8_t process_event(enum_button_event evt) {
 		break;
 	}
 }
-
-
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 

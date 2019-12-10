@@ -23,7 +23,6 @@ typedef enum menu_type {
 typedef union func_union{
 	float32_t (*func_weight)(float32_t *, uint32_t,float32_t *);
 	float32_t (*func_window)(float32_t *, uint32_t);
-
 }typedef_func_union;
 
 
@@ -38,7 +37,7 @@ typedef struct callback {
 typedef struct user_menu
 {
 	char * folder_name;
-	callback_typedef * callback_head;
+	callback_typedef * active_callback;
 
 
 
