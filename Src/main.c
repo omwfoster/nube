@@ -100,7 +100,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 5;
+	TIM_Handle.Init.Prescaler = 30;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -119,31 +119,31 @@ void add_ui() {
 	menu_typedef * m = add_menu("window", 0);
 	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Hamming;
-	add_callback(m, "hamming", tf_window);
+	add_window_callback(m, "hamming", tf_window);
 	tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Blackman;
-	add_callback(m, "Blackman", tf_window);
+	add_window_callback(m, "Blackman", tf_window);
 	tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Kaiser;
-	add_callback(m, "Kaiser", tf_window);
+	add_window_callback(m, "Kaiser", tf_window);
 	tf_window = malloc(sizeof(typedef_func_union));
 	tf_window->func_window = &Hanning;
-	add_callback(m, "Hanning", tf_window);
+	add_window_callback(m, "Hanning", tf_window);
 	toplevel_menu[0] = m;
 
-	m = add_menu("weight", 1);
+	m = add_menu("weight", 0);
 	typedef_func_union * tf_weight = malloc(sizeof(typedef_func_union));
 	tf_weight->func_weight = &rms_weighting;
-	add_callback(m, "rms_weighting", tf_weight);
+	add_weight_callback(m, "rms_weighting", tf_weight);
 	tf_weight = malloc(sizeof(typedef_func_union));
 	tf_weight->func_weight = &rms_weighting_2;
-	add_callback(m, "rms_weighting_2", tf_weight);
+	add_weight_callback(m, "rms_weighting_2", tf_weight);
 	tf_weight = malloc(sizeof(typedef_func_union));
 	tf_weight->func_weight = &sd_weighting;
-	add_callback(m, "sd_weighting", tf_weight);
+	add_weight_callback(m, "sd_weighting", tf_weight);
 	tf_weight = malloc(sizeof(typedef_func_union));
 	tf_weight->func_weight = &sd_weighting_2;
-	add_callback(m, "sd_weighting", tf_weight);
+	add_weight_callback(m, "sd_weighting", tf_weight);
 	toplevel_menu[1] = m;
 }
 
@@ -271,7 +271,7 @@ void fft_ws2812_Init() {
 	enablefpu();
 	HAL_Init();
 
-	toplevel_menu[0]
+	toplevel_menu[1]
 				  ->active_callback
 				  ->callback_ptr->func_window(&array_window[0], (FFT_LEN));
 

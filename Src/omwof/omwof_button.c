@@ -10,7 +10,7 @@
 #include "omwof/omwof_window.h"
 #include "omwof/omwof_weight.h"
 
-volatile  uint32_t start_press = 0U;
+static uint32_t start_press = 0U;
 static bool wait_release = false;
 
 typedef enum button_state {
@@ -53,13 +53,13 @@ uint8_t process_event(enum_button_event evt) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
-	volatile uint32_t duration = 0;
-	volatile uint32_t event = HAL_GetTick();
-	if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0)) {
-		start_press = event ;
+	uint32_t duration = 0;
+	uint8_t rising = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+	if (rising) {
+		start_press = HAL_GetTick();
 	} else {
-		duration = event - start_press;
-		user_event = duration < 500 ? SHORT_PRESS : LONG_PRESS;
+		duration = HAL_GetTick() - start_press;
+		user_event = duration > 100 ? SHORT_PRESS : LONG_PRESS;
 		process_event(user_event);
 
 	}

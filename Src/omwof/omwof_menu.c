@@ -9,6 +9,9 @@
 
 menu_typedef * toplevel_menu[2];
 
+
+
+
 menu_typedef * add_menu(const char * menu_title, uint8_t index) {
 
 	menu_typedef * m = malloc(sizeof(menu_typedef));
@@ -19,32 +22,59 @@ menu_typedef * add_menu(const char * menu_title, uint8_t index) {
 
 }
 
-
-
-uint8_t add_callback(menu_typedef * menu, char * callback_name,
+uint8_t add_weight_callback(menu_typedef * menu, char * callback_name,
 		typedef_func_union * t_func) {
 
-	if (menu->active_callback == NULL) // create first item
-	{
-		menu->active_callback 				= malloc(sizeof(callback_typedef));
-		menu->active_callback->callback_ptr = t_func;
-		menu->active_callback->callback_name 					= strdup(callback_name);
-		menu->active_callback->next_ptr 	= menu->active_callback; // point next item to self to  create a loop
+	callback_typedef * cb = malloc(sizeof(callback_typedef));
+	cb->callback_ptr->func_weight = t_func->func_weight;
+	if (menu->active_callback = NULL) // create first item
+			{
+		menu->active_callback = cb;
+		menu->folder_name = strdup(callback_name);
+		menu->active_callback->next_ptr = cb; // point next item to self to  create a loop
 		return 1;
 	}
+	callback_typedef * current_callback = menu->active_callback ;
 
-	callback_typedef * current_callback = menu->active_callback;
-
-	while (current_callback->next_ptr != menu->active_callback->next_ptr) {
+	while (current_callback->next_ptr != cb) {
 		current_callback = current_callback->next_ptr; // move to end of the list
 	}
 
-	current_callback->next_ptr 									       = malloc(sizeof(callback_typedef));
-	((callback_typedef *) current_callback->next_ptr)->callback_ptr    = t_func;
-	((callback_typedef *) current_callback->next_ptr)->callback_name   = strdup(callback_name);
-	((callback_typedef *) current_callback->next_ptr)->next_ptr        = menu->active_callback;
+	current_callback->next_ptr = cb;
+	cb->callback_name = strdup(callback_name);
+	cb->callback_ptr->func_weight =  t_func->func_weight;
+	cb->next_ptr = (void *)menu->active_callback;
+
 
 }
+
+uint8_t add_window_callback(menu_typedef * menu, char * callback_name,
+		typedef_func_union * t_func) {
+
+	callback_typedef volatile * cb = malloc(sizeof(callback_typedef));
+	cb->callback_ptr->func_window = t_func->func_window;
+	if (menu->active_callback == NULL) // create first item
+			{
+		menu->active_callback = cb;
+		menu->folder_name = strdup(callback_name);
+		menu->active_callback->next_ptr = cb; // point next item to self to  create a loop
+		return 1;
+	}
+	callback_typedef * current_callback = menu->active_callback ;
+
+	while (current_callback->next_ptr != cb) {
+		current_callback = current_callback->next_ptr; // move to end of the list
+	}
+
+	current_callback->next_ptr = cb;
+	cb->callback_name = strdup(callback_name);
+	cb->callback_ptr->func_window =  t_func->func_window;
+	cb->next_ptr = (void *)menu->active_callback;
+
+
+}
+
+
 
 void delete_menu() {
 }
