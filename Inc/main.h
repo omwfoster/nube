@@ -23,7 +23,7 @@
 
 
 
-#define SAMPLE_RATE_HZ  8000U // Sample rate of the audio in hertz.
+#define SAMPLE_RATE_HZ  16000U // Sample rate of the audio in hertz.
 #define FFT_LEN 128
 #define FFT_BUFFER_SIZE  (FFT_LEN * 2) /* size in bytes of the fft input buffer */
 #define NUM_BLOCKS  (FFT_BUFFER_SIZE / BLOCK_SIZE)
@@ -53,7 +53,7 @@
 
 /* AudioFreq * DataSize (2 bytes) * NumChannels (Stereo: 2) */
 
-#define DEFAULT_AUDIO_IN_FREQ                 8000U
+#define DEFAULT_AUDIO_IN_FREQ                 16000U
 #define DEFAULT_AUDIO_IN_BIT_RESOLUTION       16
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR          1 /* Mono = 1, Stereo = 2 */
 
@@ -108,6 +108,7 @@ void fft_ws2812_Init();
 void Error_Handler(void);
 void calc_mag_output(float32_t *, float32_t *, uint16_t);
 void drop_volume();
+void set_window();
 
 
 

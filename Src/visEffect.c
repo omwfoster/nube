@@ -109,12 +109,12 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t
 
 	for (uint16_t i = 1; i < array_len; ++i) { ///  hard-coded buffer size need runtime evaluation
 	//	volatile float32_t v_temp =  *(_mag)/ (mag_max);
-		if (*_db > 0.82f) {
+		if (*_db > 0.5f) {
 			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
 
 
 			hsv_struct.s = (*(_Real) / *(_mag));
-			hsv_struct.v = (* _db )*pow(weight,2);
+			hsv_struct.v = (pow(* _db,3)) * weight;
 			_Real += 2;
 			_mag++;
 			_db++;

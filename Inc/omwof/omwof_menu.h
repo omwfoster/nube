@@ -46,8 +46,7 @@ typedef struct user_menu
 extern menu_typedef *  toplevel_menu[];
 
 menu_typedef * add_menu(const char * menu_title,uint8_t index);
-uint8_t add_weight_callback(menu_typedef * menu, char * callback_name,
-		typedef_func_union * t_func);
+
 
 uint8_t add_callback(menu_typedef * menu, char * callback_name,
 		typedef_func_union * t_func);

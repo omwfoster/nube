@@ -87,7 +87,8 @@ static void TIM1_init(void) {
 	// This computation of pulse length should work ok,
 	// at some slower core speeds it needs some tuning.
 	tim_period = SystemCoreClock / 800000; // 0,125us period (10 times lower the 1,25us period to have fixed math below)
-	timer_reset_pulse_period = 500; // 60us just to be sure
+	//timer_reset_pulse_period = 500; // 60us just to be sure
+	timer_reset_pulse_period = (SystemCoreClock / (320 * 50)); // 60us just to be sure
 
 	uint32_t cc1 = (10 * tim_period) / 36;
 	uint32_t cc2 = (10 * tim_period) / 15;
@@ -476,7 +477,6 @@ uint8_t BB_generator(WS2812_BufferItem volatile * WS_Buf) {
 		}
 
 		row = 0;
-		//	counter = 0;
 		red = 0;
 		green = 0;
 		blue = 0;

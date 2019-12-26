@@ -160,7 +160,7 @@
 
 /* AudioFreq * DataSize (2 bytes) * NumChannels (Stereo: 2) */
 
-#define DEFAULT_AUDIO_IN_FREQ                 8000U
+#define DEFAULT_AUDIO_IN_FREQ                 16000U
 #define DEFAULT_AUDIO_IN_BIT_RESOLUTION       16
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR          1 /* Mono = 1, Stereo = 2 */
 #define DEFAULT_AUDIO_IN_VOLUME               32

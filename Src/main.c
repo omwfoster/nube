@@ -12,6 +12,7 @@ I2S_HandleTypeDef hi2s3;
 #include "omwof/omwof_window.h"
 #include "omwof/omwof_menu.h"
 #include "omwof/omwof_button.h"
+#include "omwof/omwof_db.h"
 
 #define OUTPUT_TEST
 SPI_HandleTypeDef hspi1;
@@ -47,7 +48,7 @@ static bool peq1_abFlag = false;
 static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 		peq1_coeffsA };
 
-static const uint16_t SAMPLE_RUNS = 16; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
+static const uint16_t SAMPLE_RUNS = 8; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
 float32_t fft_input_array[FFT_LEN]; //
 float32_t fft_temp_array[FFT_LEN]; //
@@ -100,7 +101,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 5;
+	TIM_Handle.Init.Prescaler = 20;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -114,7 +115,7 @@ uint8_t TIM4_config(void)
 
 #define UDG	0
 
-menu_typedef * toplevel_menu[2];
+menu_typedef * toplevel_menu[1];
 void add_ui() {
 	menu_typedef * m = add_menu("window", 0);
 	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
@@ -185,8 +186,10 @@ void test_loop2() {
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
 
-void main(void) {
+ void main(void) {
 	cleanbuffers();
+	enablefpu();
+	HAL_Init();
 	//init_lcd();
 	add_ui();
 	fft_ws2812_Init();
@@ -215,7 +218,7 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight =toplevel_menu[0]->active_callback->callback_ptr->func_weight(
+			weight =toplevel_menu[1]->active_callback->callback_ptr->func_weight(
 							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
@@ -266,15 +269,22 @@ void BSP_Led_init() {
 }
 
 extern Window_TypeDef Window_profiles[5];
+
+void set_window()
+{
+
+				toplevel_menu[0]
+					  ->active_callback
+					  ->callback_ptr->func_window(&array_window[0], (FFT_LEN));
+
+}
+
 void fft_ws2812_Init() {
 
-	enablefpu();
-	HAL_Init();
 
-	toplevel_menu[0]
-				  ->active_callback
-				  ->callback_ptr->func_window(&array_window[0], (FFT_LEN));
 
+
+	set_window();
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	AUDIODataReady = 0;
 	BSP_Audio_init();
@@ -316,9 +326,9 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 				(uint16_t *) &PCM_Buf[0]);
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
-		PCM_OUT_SIZE);
+		PCM_OUT_SIZE * 2);
 		arm_mult_f32(&float_array[0], &array_window[buff_pos],
-				&fft_input_array[buff_pos], PCM_OUT_SIZE);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE * 2);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;
@@ -338,9 +348,9 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 		BSP_AUDIO_IN_PDMToPCM((uint16_t *) &internal_buffer[0],
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
-		PCM_OUT_SIZE);
+		PCM_OUT_SIZE * 2);
 		arm_mult_f32(&float_array[0], &array_window[buff_pos],
-				&fft_input_array[buff_pos], PCM_OUT_SIZE);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE * 2);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;

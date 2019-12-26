@@ -19,7 +19,12 @@
 #include "omwof/omwof_weight.h"
 
 
+
+
+
+
 uint8_t init_button();
+extern void set_window();
 
 
 #endif /* OMWOF_OMWOF_BUTTON_H_ */
