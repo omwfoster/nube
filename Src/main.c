@@ -20,7 +20,7 @@ SPI_HandleTypeDef hspi1;
 I2S_HandleTypeDef hAudioInI2s;
 
 static volatile uint32_t ITCounter = 0; //  buffer position for use in isr
-volatile uint16_t buff_pos = 0;  // pointer to buffer position
+static volatile uint16_t buff_pos = 0;  // pointer to buffer position
 
 float32_t F_Sum = 0.0f;  // cmsis support function variables
 float32_t max_Value = 0.0;
@@ -64,8 +64,8 @@ float32_t hann_buff[FFT_LEN];
 
 // sample data
 uint16_t internal_buffer[INTERNAL_BUFF_SIZE]; // read raw pdm input    128 * DEFAULT_AUDIO_IN_FREQ/16000 *DEFAULT_AUDIO_IN_CHANNEL_NBR
-uint16_t PCM_Buf[PCM_OUT_SIZE * 2]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
-float32_t float_array[PCM_OUT_SIZE * 2];
+uint16_t PCM_Buf[PCM_OUT_SIZE]; //PCM stereo samples are saved in RecBuf  DEFAULT_AUDIO_IN_FREQ/1000
+float32_t float_array[PCM_OUT_SIZE];
 
 void enablefpu() {
 	__asm volatile(
@@ -101,7 +101,7 @@ uint8_t TIM4_config(void)
 
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 20;
+	TIM_Handle.Init.Prescaler = 10;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled
@@ -191,7 +191,9 @@ uint8_t weight_profile_index = 0;
 	enablefpu();
 	HAL_Init();
 	//init_lcd();
+
 	add_ui();
+	set_window();
 	fft_ws2812_Init();
 
 	TIM4_config(); // timer for LED refresh
@@ -203,6 +205,7 @@ uint8_t weight_profile_index = 0;
 
 	while (1) {
 
+
 		/*	if (AUDIODataReady == 0) {
 		 test_loop2();
 		 //	arm_mult_f32(&fft_input_array[0], hann_window,
@@ -213,7 +216,7 @@ uint8_t weight_profile_index = 0;
 		 }*/
 
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
-			StartRFFTTask();
+			StartRFFTTask();   // test if duration variable is overwritten
 
 		}
 
@@ -326,9 +329,9 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 				(uint16_t *) &PCM_Buf[0]);
 
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
-		PCM_OUT_SIZE * 2);
+		PCM_OUT_SIZE);
 		arm_mult_f32(&float_array[0], &array_window[buff_pos],
-				&fft_input_array[buff_pos], PCM_OUT_SIZE * 2);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;
@@ -348,9 +351,9 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 		BSP_AUDIO_IN_PDMToPCM((uint16_t *) &internal_buffer[0],
 				(uint16_t *) &PCM_Buf[0]);
 		PCM_to_Float((uint16_t *) &PCM_Buf[0], (float32_t *) &float_array[0],
-		PCM_OUT_SIZE * 2);
+		PCM_OUT_SIZE);
 		arm_mult_f32(&float_array[0], &array_window[buff_pos],
-				&fft_input_array[buff_pos], PCM_OUT_SIZE * 2);
+				&fft_input_array[buff_pos], PCM_OUT_SIZE);
 
 		if (ITCounter < (SAMPLE_RUNS - 1)) {
 			ITCounter++;

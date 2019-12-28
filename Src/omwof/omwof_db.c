@@ -80,11 +80,14 @@ void shift_db_to_100(float32_t * db_array, uint32_t array_len) {
 
 }
 
+static volatile float32_t min;
+
+
 void normalize_db(float32_t * dB_array, uint32_t array_len) {
 
 
-	static float32_t min;
-	uint32_t  pIndex;
+	static uint32_t  pIndex;
+
 	arm_scale_f32(dB_array, 0.01f, &shift_dB_array[0], array_len);
 	arm_min_f32(shift_dB_array, array_len, &min, &pIndex);
 	arm_offset_f32(shift_dB_array, (-1.0*min), dB_array, array_len);

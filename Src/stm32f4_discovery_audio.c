@@ -712,7 +712,7 @@ uint8_t BSP_AUDIO_IN_Init(uint32_t AudioFreq, uint32_t BitRes, uint32_t ChnlNbr)
   /* Configure the PDM library */
   /* On STM32F4-Discovery a single microphone is mounted, samples are duplicated
      to make stereo audio streams */
-  PDMDecoder_Init(AudioFreq, ChnlNbr, 2);
+  PDMDecoder_Init(AudioFreq, ChnlNbr, 1);
 
   /* Configure the I2S peripheral */
   hAudioInI2s.Instance = I2S2;
@@ -828,11 +828,13 @@ uint8_t BSP_AUDIO_IN_PDMToPCM(uint16_t *PDMBuf, uint16_t *PCMBuf)
     /* PDM to PCM filter */
 	PDM_Filter((uint8_t*)&AppPDM[index], (uint16_t*)&(PCMBuf[index]), &PDM_FilterHandler[index]);
   }
+
+// no  duplication to stereo
   /* Duplicate samples since a single microphone in mounted on STM32F4-Discovery */
-  for(index = 0; index < PCM_OUT_SIZE; index++)
-  {
-    PCMBuf[(index<<1)+1] = PCMBuf[index<<1];
-  }
+//  for(index = 0; index < PCM_OUT_SIZE; index++)
+//  {
+//   PCMBuf[(index<<1)+1] = PCMBuf[index<<1];
+//  }
   
   /* Return AUDIO_OK when all operations are correctly done */
   return AUDIO_OK; 
