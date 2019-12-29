@@ -95,6 +95,8 @@ void SystemClock_Config(void);
 
 TIM_HandleTypeDef TIM_Handle;
 
+
+
 uint8_t TIM4_config(void)
 
 {
@@ -111,6 +113,19 @@ uint8_t TIM4_config(void)
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
 	return 1;
 
+}
+
+void TIM4_IRQHandler(void)
+
+{
+	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
+			{
+		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
+			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
+
+			ws2812b_handle();
+		}
+	}
 }
 
 #define UDG	0
@@ -366,18 +381,7 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 	}
 }
 
-void TIM4_IRQHandler(void)
 
-{
-	if (__HAL_TIM_GET_FLAG(&TIM_Handle, TIM_FLAG_UPDATE) != RESET) //In case other interrupts are also running
-			{
-		if (__HAL_TIM_GET_ITSTATUS(&TIM_Handle, TIM_IT_UPDATE) != RESET) {
-			__HAL_TIM_CLEAR_FLAG(&TIM_Handle, TIM_FLAG_UPDATE);
-
-			ws2812b_handle();
-		}
-	}
-}
 
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);

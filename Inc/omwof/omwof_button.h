@@ -25,6 +25,7 @@
 
 uint8_t init_button();
 extern void set_window();
+uint8_t TIM5_config(void);
 
 
 #endif /* OMWOF_OMWOF_BUTTON_H_ */
