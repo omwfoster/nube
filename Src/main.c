@@ -18,6 +18,7 @@ I2S_HandleTypeDef hi2s3;
 SPI_HandleTypeDef hspi1;
 
 I2S_HandleTypeDef hAudioInI2s;
+I2C_HandleTypeDef SSD1306_I2C_PORT;
 
 static volatile uint32_t ITCounter = 0; //  buffer position for use in isr
 static volatile uint16_t buff_pos = 0;  // pointer to buffer position
@@ -94,8 +95,6 @@ void cleanbuffers() {
 void SystemClock_Config(void);
 
 TIM_HandleTypeDef TIM_Handle;
-
-
 
 uint8_t TIM4_config(void)
 
@@ -181,7 +180,6 @@ void init_lcd() {
 	hd44780_put(UDG);
 	hd44780_display(true, false, false);
 
-
 }
 
 volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
@@ -201,11 +199,11 @@ void test_loop2() {
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
 
- void main(void) {
+void main(void) {
 	cleanbuffers();
 	enablefpu();
 	HAL_Init();
-	//init_lcd();
+	ssd1306_TestAll();
 
 	add_ui();
 	set_window();
@@ -219,7 +217,6 @@ uint8_t weight_profile_index = 0;
 	init_button();
 
 	while (1) {
-
 
 		/*	if (AUDIODataReady == 0) {
 		 test_loop2();
@@ -236,7 +233,8 @@ uint8_t weight_profile_index = 0;
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight =toplevel_menu[1]->active_callback->callback_ptr->func_weight(
+			weight =
+					toplevel_menu[1]->active_callback->callback_ptr->func_weight(
 							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
@@ -288,26 +286,20 @@ void BSP_Led_init() {
 
 extern Window_TypeDef Window_profiles[5];
 
-void set_window()
-{
-
-				toplevel_menu[0]
-					  ->active_callback
-					  ->callback_ptr->func_window(&array_window[0], (FFT_LEN));
-
+void set_window() {
+	toplevel_menu[0]
+	->active_callback
+	->callback_ptr
+	->func_window
+	(&array_window[0], (FFT_LEN));
 }
 
 void fft_ws2812_Init() {
-
-
-
-
 	set_window();
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	AUDIODataReady = 0;
 	BSP_Audio_init();
 	visInit();
-
 }
 
 float32_t max_db;
@@ -380,8 +372,6 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 		}
 	}
 }
-
-
 
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);

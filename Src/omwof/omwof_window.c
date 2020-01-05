@@ -70,9 +70,11 @@ float32_t Chebeyshev(float32_t * output_array, uint32_t N) {
 
 Window_TypeDef Window_profiles[5] = { { &Hanning, "Hanning", 0U }, { &Hamming,
 		"Hamming", 1U }, { &Blackman, "Blackman", 2U }, { Chebeyshev,
-		"Chebayshev", 3U }, { &Kaiser, "Kaiser", 4U }, };
+		"Chebeyshev", 3U }, { &Kaiser, "Kaiser", 4U }, };
 
 uint8_t window_init() {
+
+
 
 }
 

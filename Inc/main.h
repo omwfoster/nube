@@ -18,6 +18,8 @@
 #include "omwof/omwof_weight.h"
 #include "omwof/omwof_irq.h"
 #include "omwof/omwof_lcd.h"
+#include "ssd1306.h"
+#include "ssd1306_tests.h"
 
 
 
