@@ -1,5 +1,5 @@
 #include "main.h"
-#include "stm32f4xx_hal_conf.h"
+#include "stm32f4xx_hal.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
 //I2C_HandleTypeDef hi2c1;

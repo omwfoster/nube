@@ -4,7 +4,6 @@ extern "C"
 #endif
 
 #include "stm32f4xx_hal.h"
-#include "../Src/ws2812b/ws2812b.h"
 #include <stdlib.h>
 #include <ws2812b.h>
 #include <arm_math.h>
