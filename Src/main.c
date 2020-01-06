@@ -284,8 +284,7 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight =
-					toplevel_menu[1]->active_callback->callback_ptr->func_weight(
+			weight = toplevel_menu[1]->active_callback->callback_ptr->func_weight(
 							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
