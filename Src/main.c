@@ -78,18 +78,7 @@ void enablefpu() {
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
 
-void cleanbuffers() {
 
-#ifndef OUTPUT_TEST
-
-	arm_fill_f32(0.0f, fft_input_array, FFT_LEN);
-
-#endif
-
-	arm_fill_f32(0.0f, fft_output_bins, FFT_LEN);
-	arm_fill_f32(0.0f, mag_output_bins, FFT_LEN / 2);
-
-}
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -99,9 +88,7 @@ TIM_HandleTypeDef TIM_Handle;
 uint8_t TIM4_config(void)
 
 {
-
-	__TIM4_CLK_ENABLE()
-	;
+	__TIM4_CLK_ENABLE();
 	TIM_Handle.Init.Prescaler = 10;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
@@ -129,10 +116,12 @@ void TIM4_IRQHandler(void)
 
 #define UDG	0
 
-menu_typedef * toplevel_menu[1];
+menu_typedef * toplevel_menu[3];
 void add_ui() {
+
 	menu_typedef * m = add_menu("window", 0);
 	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
+
 	tf_window->func_window = &Hamming;
 	add_callback(m, "hamming", tf_window);
 	tf_window = malloc(sizeof(typedef_func_union));
@@ -160,6 +149,21 @@ void add_ui() {
 	tf_weight->func_weight = &sd_weighting_2;
 	add_callback(m, "sd_weighting", tf_weight);
 	toplevel_menu[1] = m;
+
+	m = add_menu("Power", 2);
+	typedef_func_union * tf_power = malloc(sizeof(typedef_func_union));
+	tf_power->func_power = &power_spectra;
+	add_callback(m, "power0", tf_power);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_power->func_power = &power_spectra1;
+	add_callback(m, "power1", tf_power);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_power->func_power = &power_spectra2;
+	add_callback(m, "power2", tf_power);
+	tf_weight = malloc(sizeof(typedef_func_union));
+	tf_power->func_power = &power_spectra3;
+	add_callback(m, "power3", tf_power);
+	toplevel_menu[1] = m;
 }
 
 void init_lcd() {
@@ -182,19 +186,7 @@ void init_lcd() {
 
 }
 
-volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
-void test_loop2() {
 
-	if (i <= FFT_LEN) {
-		sine_sample(&fft_input_array[0], FFT_LEN, i, 0); //  calculate sine values for a wave run
-		i *= 2; 								//  multiply by 2 for next run
-	} else {
-		i = 4;		//  restart sequence if the sequence were to overflow the
-					//	overall sample length
-	}
-
-	AUDIODataReady = 1;
-}
 
 /* I2C1 init function */
 static void MX_I2C1_Init(void)
@@ -263,37 +255,32 @@ static void MX_GPIO_Init(void)
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
 
-void main(void) {
+void init()
+{
 	cleanbuffers();
 	enablefpu();
 	HAL_Init();
-	ssd1306_TestAll();
-
 	add_ui();
-	set_window();
 	fft_ws2812_Init();
+	init_button();
+}
+
+void main(void) {
+
+	init();
+
+	ssd1306_TestAll();
+	set_window();   // create an array containing window coefficients for the input array
 
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(64);
-
 	UserPressButton = 0;
 	float32_t weight = 0.0f;
-	init_button();
 
 	while (1) {
 
-		/*	if (AUDIODataReady == 0) {
-		 test_loop2();
-		 //	arm_mult_f32(&fft_input_array[0], hann_window,
-		 //					&fft_temp_array[0], FFT_LEN);
-		 //	memcpy(&fft_input_array[0],&fft_temp_array[0],(FFT_LEN * 4));
-		 AUDIODataReady = 1;
-
-		 }*/
-
 		if ((AUDIODataReady == 1 && FFT_Ready == 0)) {
 			StartRFFTTask();   // test if duration variable is overwritten
-
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
@@ -310,7 +297,6 @@ void main(void) {
 			LED_Ready = 0;
 			FFT_Ready = 0;
 			AUDIODataReady = 0;
-
 		}
 	}
 
@@ -373,9 +359,8 @@ uint8_t StartRFFTTask() {
 
 	arm_rfft_fast_f32(&rfft_s, &fft_input_array[0], &fft_output_bins[0], 0);
 	arm_cmplx_mag_f32(&fft_output_bins[0], &mag_output_bins[0], (FFT_LEN / 2));
-	mag2db(&mag_output_bins[0], &db_output_bins[0], FFT_LEN / 2);
-	shift_db_to_100(&db_output_bins[0], FFT_LEN / 2);
-	normalize_db(&db_output_bins[0], FFT_LEN / 2);
+	toplevel_menu[2]->active_callback->callback_ptr->func_power(
+			&mag_output_bins[0], &db_output_bins[0]    ,(FFT_LEN / 2));
 	arm_fill_f32(0.0f, &fft_input_array[0], FFT_LEN);
 	FFT_Ready = 1;
 	return 1;
@@ -439,6 +424,34 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
 void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);
+}
+
+volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
+void test_loop2() {
+
+	if (i <= FFT_LEN) {
+		sine_sample(&fft_input_array[0], FFT_LEN, i, 0); //  calculate sine values for a wave run
+		i *= 2; 								//  multiply by 2 for next run
+	} else {
+		i = 4;		//  restart sequence if the sequence were to overflow the
+					//	overall sample length
+	}
+
+	AUDIODataReady = 1;
+}
+
+
+void cleanbuffers() {
+
+#ifndef OUTPUT_TEST
+
+	arm_fill_f32(0.0f, fft_input_array, FFT_LEN);
+
+#endif
+
+	arm_fill_f32(0.0f, fft_output_bins, FFT_LEN);
+	arm_fill_f32(0.0f, mag_output_bins, FFT_LEN / 2);
+
 }
 
 void _Error_Handler(char *file, int line) {

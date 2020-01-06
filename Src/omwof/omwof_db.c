@@ -4,9 +4,10 @@
  *  Created on: 18 Dec 2019
  *      Author: oli
  */
-
+#include <stdint.h>
+#include <stdlib.h>
+#include <arm_math.h>
 #include <omwof/omwof_db.h>
-
 
 void remove_dc_from_mag(float32_t * mag, uint32_t array_length) {
 
@@ -62,7 +63,6 @@ float32_t shift_dB_array[64];
 
 void shift_db_to_100(float32_t * db_array, uint32_t array_len) {
 
-
 	static float32_t t_max;
 	static volatile float32_t t_offset;
 	static uint32_t i, temp_db;
@@ -80,18 +80,45 @@ void shift_db_to_100(float32_t * db_array, uint32_t array_len) {
 
 }
 
-static volatile float32_t min;
-
+float32_t min;
 
 void normalize_db(float32_t * dB_array, uint32_t array_len) {
 
-
-	static uint32_t  pIndex;
+	static uint32_t pIndex;
 
 	arm_scale_f32(dB_array, 0.01f, &shift_dB_array[0], array_len);
 	arm_min_f32(shift_dB_array, array_len, &min, &pIndex);
-	arm_offset_f32(shift_dB_array, (-1.0*min), dB_array, array_len);
-	arm_scale_f32(dB_array,(1/(1.0f - min)),shift_dB_array,array_len);
-	memcpy(dB_array,shift_dB_array,array_len *4);
+	arm_offset_f32(shift_dB_array, (-1.0 * min), dB_array, array_len);
+	arm_scale_f32(dB_array, (1 / (1.0f - min)), shift_dB_array, array_len);
+	memcpy(dB_array, shift_dB_array, array_len * 4);
 
+}
+
+void power_spectra(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins) {
+
+	mag2db(input_bins, power_spectra, number_of_bins);
+	shift_db_to_100(power_spectra, number_of_bins);
+	normalize_db(power_spectra, number_of_bins);
+}
+void power_spectra1(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins) {
+
+	mag2db(input_bins, power_spectra, number_of_bins);
+	shift_db_to_100(power_spectra, number_of_bins);
+	normalize_db(power_spectra, number_of_bins);
+}
+void power_spectra2(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins) {
+
+	mag2db(input_bins, power_spectra, number_of_bins);
+	shift_db_to_100(power_spectra, number_of_bins);
+	normalize_db(power_spectra, number_of_bins);
+}
+void power_spectra3(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins) {
+
+	mag2db(input_bins, power_spectra, number_of_bins);
+	shift_db_to_100(power_spectra, number_of_bins);
+	normalize_db(power_spectra, number_of_bins);
 }

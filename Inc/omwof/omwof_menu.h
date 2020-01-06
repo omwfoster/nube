@@ -14,7 +14,7 @@
 #include <arm_math.h>
 
 typedef enum menu_type {
-	WEIGHT_FOLDER, WINDOW_FOLDER
+	WEIGHT_FOLDER, WINDOW_FOLDER ,POWER_FOLDER
 } enum_menu_type;
 
 
@@ -23,6 +23,7 @@ typedef enum menu_type {
 typedef union func_union{
 	float32_t (*func_weight)(float32_t *, uint32_t,float32_t *);
 	float32_t (*func_window)(float32_t *, uint32_t);
+	void (*func_power)(float32_t *,float32_t *, uint32_t);
 }typedef_func_union;
 
 
