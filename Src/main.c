@@ -78,8 +78,6 @@ void enablefpu() {
 			"  isb" /* reset pipeline now the FPU is enabled */);
 }
 
-
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
@@ -88,7 +86,8 @@ TIM_HandleTypeDef TIM_Handle;
 uint8_t TIM4_config(void)
 
 {
-	__TIM4_CLK_ENABLE();
+	__TIM4_CLK_ENABLE()
+	;
 	TIM_Handle.Init.Prescaler = 10;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
@@ -186,46 +185,46 @@ void init_lcd() {
 
 }
 
-
 /* I2C1 init function */
-void MX_I2C1_Init(void)
-{
+void MX_I2C1_Init(void) {
 
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLED;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLED;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLED;
-  HAL_I2C_Init(&hi2c1);
+	hi2c1.Instance = I2C1;
+	hi2c1.Init.ClockSpeed = 100000;
+	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	hi2c1.Init.OwnAddress1 = 0;
+	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLED;
+	hi2c1.Init.OwnAddress2 = 0;
+	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLED;
+	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLED;
+	HAL_I2C_Init(&hi2c1);
 
 }
 
 /** Pinout Configuration
-*/
-void MX_GPIO_Init(void)
-{
+ */
+void MX_GPIO_Init(void) {
 
-  /* GPIO Ports Clock Enable */
-  __GPIOB_CLK_ENABLE();
+	/* GPIO Ports Clock Enable */
+	__GPIOB_CLK_ENABLE()
+	;
 
 }
 
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
 
-void init()
-{
+void init() {
 
-//	MX_I2C1_Init();
-//	MX_GPIO_Init();
-//	ssd1306_TestAll();
-	cleanbuffers();
 	enablefpu();
 	HAL_Init();
+
+	MX_GPIO_Init();
+	MX_I2C1_Init();
+	ssd1306_Init();
+//	ssd1306_TestAll();
+	cleanbuffers();
+
 	add_ui();
 	fft_ws2812_Init();
 	init_button();
@@ -235,8 +234,7 @@ void main(void) {
 
 	init();
 
-
-	set_window();   // create an array containing window coefficients for the input array
+	set_window(); // create an array containing window coefficients for the input array
 
 	TIM4_config(); // timer for LED refresh
 	BSP_AUDIO_IN_SetVolume(64);
@@ -250,7 +248,8 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight = toplevel_menu[1]->active_callback->callback_ptr->func_weight(
+			weight =
+					toplevel_menu[1]->active_callback->callback_ptr->func_weight(
 							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
@@ -302,11 +301,8 @@ void BSP_Led_init() {
 extern Window_TypeDef Window_profiles[5];
 
 void set_window() {
-	toplevel_menu[0]
-	->active_callback
-	->callback_ptr
-	->func_window
-	(&array_window[0], (FFT_LEN));
+	toplevel_menu[0]->active_callback->callback_ptr->func_window(
+			&array_window[0], (FFT_LEN));
 }
 
 void fft_ws2812_Init() {
@@ -325,7 +321,7 @@ uint8_t StartRFFTTask() {
 	arm_rfft_fast_f32(&rfft_s, &fft_input_array[0], &fft_output_bins[0], 0);
 	arm_cmplx_mag_f32(&fft_output_bins[0], &mag_output_bins[0], (FFT_LEN / 2));
 	toplevel_menu[2]->active_callback->callback_ptr->func_power(
-			&mag_output_bins[0], &db_output_bins[0]    ,(FFT_LEN / 2));
+			&mag_output_bins[0], &db_output_bins[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, &fft_input_array[0], FFT_LEN);
 	FFT_Ready = 1;
 	return 1;
@@ -404,7 +400,6 @@ void test_loop2() {
 
 	AUDIODataReady = 1;
 }
-
 
 void cleanbuffers() {
 
