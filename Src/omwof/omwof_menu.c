@@ -7,7 +7,7 @@
 
 #include "omwof/omwof_menu.h"
 
-menu_typedef * toplevel_menu[2];
+extern menu_typedef * toplevel_menu[];
 
 menu_typedef * add_menu(const char * menu_title, uint8_t index) {
 

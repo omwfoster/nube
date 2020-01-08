@@ -113,7 +113,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t
 
 
 			hsv_struct.s = (*(_Real) / *(_mag));
-			hsv_struct.v = (pow(* _db,3)) * weight;
+			hsv_struct.v = * _db * weight;
 			_Real += 2;
 			_mag++;
 			_db++;

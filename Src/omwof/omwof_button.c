@@ -37,31 +37,31 @@ TIM_HandleTypeDef TIM_Handle_btn_delay;
 uint8_t TIM5_config(void)
 
 {
-
 	__TIM5_CLK_ENABLE()
 	;
 	TIM_Handle_btn_delay.Init.Prescaler = 100;
 	TIM_Handle_btn_delay.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle_btn_delay.Init.Period = 16000;
 	TIM_Handle_btn_delay.Instance = TIM5;   //Same timer whose clocks we enabled
-
 	return 1;
-
 }
+
 
 uint8_t process_event(enum_button_event evt) {
 
+	static uint8_t i = 0;
 	switch (evt) {
 	case SHORT_PRESS:
 		active_menu->active_callback = active_menu->active_callback->next_ptr;
 		set_window();
 		break;
 	case LONG_PRESS:
-		if (active_menu == toplevel_menu[0]) {
-			active_menu = toplevel_menu[1];
+		if (active_menu != toplevel_menu[2]) {
+			i++;
 		} else {
-			active_menu = toplevel_menu[0];
+			i = 0;
 		}
+		active_menu = toplevel_menu[i];
 		break;
 	default:
 		break;

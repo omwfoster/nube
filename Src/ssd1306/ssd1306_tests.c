@@ -83,7 +83,7 @@ void ssd1306_TestFPS() {
 void ssd1306_TestAll() {
     ssd1306_Init();
     ssd1306_TestFPS();
-    HAL_Delay(3000);
+    HAL_Delay(1000);
     ssd1306_TestBorder();
     ssd1306_TestFonts();
 }
