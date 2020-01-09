@@ -2,6 +2,8 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
+
+
 //I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
@@ -165,51 +167,67 @@ void add_ui() {
 	toplevel_menu[2] = m;
 }
 
-void init_lcd() {
+static void MX_I2C2_Init(void)
+{
 
-	char udg[] = { 0x00, 0x00, 0x0a, 0x00, 0x11, 0x0e, 0x00, 0x00 };
+  /* USER CODE BEGIN I2C2_Init 0 */
 
-	hd44780_init(GPIOE, GPIO_PIN_7, GPIO_PIN_8, GPIO_PIN_9, GPIO_PIN_10,
-	GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_13, HD44780_LINES_2, HD44780_FONT_5x8);
+  /* USER CODE END I2C2_Init 0 */
 
-	hd44780_init_brightness();
-	hd44780_brightness(85);
-	hd44780_init_contrast();
-	hd44780_contrast(50);
+  /* USER CODE BEGIN I2C2_Init 1 */
 
-	hd44780_cgram(UDG, udg);
-	hd44780_position(0, 1);
-	hd44780_print("Hello World! ");
-	hd44780_put(UDG);
-	hd44780_display(true, false, false);
+  /* USER CODE END I2C2_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-}
-
-/* I2C1 init function */
-void MX_I2C1_Init(void) {
-
-	hi2c1.Instance = I2C1;
-	hi2c1.Init.ClockSpeed = 100000;
-	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	hi2c1.Init.OwnAddress1 = 0;
-	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLED;
-	hi2c1.Init.OwnAddress2 = 0;
-	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLED;
-	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLED;
-	HAL_I2C_Init(&hi2c1);
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
-/** Pinout Configuration
- */
-void MX_GPIO_Init(void) {
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
 
-	/* GPIO Ports Clock Enable */
-	__GPIOB_CLK_ENABLE()
-	;
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
 
 }
+
+/* You can connect I2C1 to two different
+
+
+ * pairs of pins:
+
+
+ * 1. SCL on PB6 and SDA on PB7
+
+
+ * 2. SCL on PB8 and SDA on PB9
+
+
+ GPIO_Pin_6, GPIO_Pin_7 for PB6 and PB7
+
+
+ GPIO_Pin_8, GPIO_Pin_9 for PB8 and PB9 */
 
 __IO uint8_t UserPressButton = 0;
 uint8_t weight_profile_index = 0;
@@ -218,11 +236,11 @@ void init() {
 
 	enablefpu();
 	HAL_Init();
-
 	MX_GPIO_Init();
-	MX_I2C1_Init();
-	ssd1306_Init();
-//	ssd1306_TestAll();
+	MX_I2C2_Init();
+
+//	ssd1306_Init();
+	ssd1306_TestAll();
 	cleanbuffers();
 
 	add_ui();
