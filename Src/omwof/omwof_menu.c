@@ -13,7 +13,9 @@ menu_typedef volatile * active_menu;
 void add_new_menu(callback_typedef * menu_head,uint8_t array_len,char * Title, enum_menu_type param_type_ID )
 {
 	if(!toplevel_menu[0])
-	{};
+	{
+
+	};
 
 }
 
