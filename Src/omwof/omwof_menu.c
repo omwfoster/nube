@@ -7,7 +7,12 @@
 
 #include "omwof/omwof_menu.h"
 
-extern menu_typedef * toplevel_menu[];
+menu_typedef * toplevel_menu[3];
+menu_typedef volatile * active_menu;
+
+void add_new_menu(typedef_func_union * funtion_pointer_list[],char * title ,enum_menu_type params)
+{
+}
 
 menu_typedef * add_menu(const char * menu_title, uint8_t index) {
 
@@ -19,17 +24,15 @@ menu_typedef * add_menu(const char * menu_title, uint8_t index) {
 
 }
 
-
-
 uint8_t add_callback(menu_typedef * menu, char * callback_name,
 		typedef_func_union * t_func) {
 
 	if (menu->active_callback == NULL) // create first item
 	{
-		menu->active_callback 				= malloc(sizeof(callback_typedef));
+		menu->active_callback = malloc(sizeof(callback_typedef));
 		menu->active_callback->callback_ptr = t_func;
-		menu->active_callback->callback_name 					= strdup(callback_name);
-		menu->active_callback->next_ptr 	= menu->active_callback; // point next item to self to  create a loop
+		menu->active_callback->callback_name = strdup(callback_name);
+		menu->active_callback->next_ptr = menu->active_callback; // point next item to self to  create a loop
 		return 1;
 	}
 
@@ -39,11 +42,20 @@ uint8_t add_callback(menu_typedef * menu, char * callback_name,
 		current_callback = current_callback->next_ptr; // move to end of the list
 	}
 
-	current_callback->next_ptr 									       = malloc(sizeof(callback_typedef));
-	((callback_typedef *) current_callback->next_ptr)->callback_ptr    = t_func;
-	((callback_typedef *) current_callback->next_ptr)->callback_name   = strdup(callback_name);
-	((callback_typedef *) current_callback->next_ptr)->next_ptr        = menu->active_callback;
+	current_callback->next_ptr = malloc(sizeof(callback_typedef));
+	((callback_typedef *) current_callback->next_ptr)->callback_ptr = t_func;
+	((callback_typedef *) current_callback->next_ptr)->callback_name = strdup(
+			callback_name);
+	((callback_typedef *) current_callback->next_ptr)->next_ptr =
+			menu->active_callback;
 
+}
+
+void next_callback(menu_typedef * current_menu) {
+
+	if (current_menu) {
+		current_menu->active_callback = current_menu->active_callback->next_ptr;
+	}
 }
 
 void delete_menu() {

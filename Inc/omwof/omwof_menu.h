@@ -46,11 +46,15 @@ typedef struct user_menu
 
 extern menu_typedef *  toplevel_menu[];
 
+void add_new_menu(typedef_func_union * funtion_pointer_list[],char * title ,enum_menu_type params);
+
 menu_typedef * add_menu(const char * menu_title,uint8_t index);
 
 
 uint8_t add_callback(menu_typedef * menu, char * callback_name,
 		typedef_func_union * t_func);
+
+void next_callback(menu_typedef * current_menu);
 
 
 

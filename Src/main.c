@@ -117,7 +117,10 @@ void TIM4_IRQHandler(void)
 
 #define UDG	0
 
-menu_typedef * toplevel_menu[3];
+extern menu_typedef * toplevel_menu[3];
+
+
+
 void add_ui() {
 
 	menu_typedef * m = add_menu("window", 0);

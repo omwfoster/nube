@@ -20,7 +20,7 @@ typedef enum button_event {
 enum_button_state user_button = NOT_IN_USE;
 enum_button_event user_event = NO_EVENT;
 extern menu_typedef * toplevel_menu[];
-menu_typedef volatile * active_menu = NULL;
+extern menu_typedef volatile * active_menu;
 
 uint8_t init_button() {
 	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
