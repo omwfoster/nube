@@ -10,8 +10,11 @@
 menu_typedef * toplevel_menu[3];
 menu_typedef volatile * active_menu;
 
-void add_new_menu(typedef_func_union * funtion_pointer_list[],char * title ,enum_menu_type params)
+void add_new_menu(callback_typedef * menu_head,uint8_t array_len,char * Title, enum_menu_type param_type_ID )
 {
+	if(!toplevel_menu[0])
+	{};
+
 }
 
 menu_typedef * add_menu(const char * menu_title, uint8_t index) {
@@ -60,4 +63,6 @@ void next_callback(menu_typedef * current_menu) {
 
 void delete_menu() {
 }
+
+
 

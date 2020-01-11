@@ -3,7 +3,6 @@
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
 
-
 //I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
@@ -120,6 +119,39 @@ void TIM4_IRQHandler(void)
 extern menu_typedef * toplevel_menu[3];
 
 
+void add_ui_v2() {
+
+	callback_typedef window_list[] = {
+			{.callback_ptr = (typedef_func_union *) &Hamming , .callback_name = "Hamming",},
+			{.callback_ptr = (typedef_func_union *) &Blackman , .callback_name = "Blackman",},
+			{.callback_ptr = (typedef_func_union *) &Kaiser , .callback_name = "Kaiser",},
+			{.callback_ptr = (typedef_func_union *) &Hanning , .callback_name = "Hanning",},
+	};
+
+	add_new_menu(&window_list[0],4,"Windows",WINDOW_FOLDER);
+
+	callback_typedef weight_list[] = {
+			{.callback_ptr = (typedef_func_union *) &rms_weighting , .callback_name = "rms_weighting",},
+			{.callback_ptr = (typedef_func_union *) &rms_weighting_2 , .callback_name = "rms_weighting2",},
+			{.callback_ptr = (typedef_func_union *) &sd_weighting , .callback_name = "sd_weighting",},
+			{.callback_ptr = (typedef_func_union *) &sd_weighting_2 , .callback_name = "sd_weighting_2",},
+	};
+
+	add_new_menu(&weight_list[0],4,"Weightings",WEIGHT_FOLDER);
+
+	callback_typedef power_list[] = {
+			{.callback_ptr = (typedef_func_union *) &power_spectra , .callback_name = "power_spectra0",},
+			{.callback_ptr = (typedef_func_union *) &power_spectra1  , .callback_name = "power_spectra1",},
+			{.callback_ptr = (typedef_func_union *) &power_spectra2 , .callback_name = "power_spectra2",},
+			{.callback_ptr = (typedef_func_union *) &power_spectra3  , .callback_name = "power_spectra3",},
+	};
+
+	add_new_menu(&power_list[0],4,"Power",POWER_FOLDER);
+
+
+	//add_new_menu((char *) "weight", &function_list2[0], 4,
+	//		WEIGHT_FOLDER);
+}
 
 void add_ui() {
 
@@ -170,48 +202,44 @@ void add_ui() {
 	toplevel_menu[2] = m;
 }
 
-static void MX_I2C2_Init(void)
-{
+static void MX_I2C2_Init(void) {
 
-  /* USER CODE BEGIN I2C2_Init 0 */
+	/* USER CODE BEGIN I2C2_Init 0 */
 
-  /* USER CODE END I2C2_Init 0 */
+	/* USER CODE END I2C2_Init 0 */
 
-  /* USER CODE BEGIN I2C2_Init 1 */
+	/* USER CODE BEGIN I2C2_Init 1 */
 
-  /* USER CODE END I2C2_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C2_Init 2 */
+	/* USER CODE END I2C2_Init 1 */
+	hi2c1.Instance = I2C1;
+	hi2c1.Init.ClockSpeed = 100000;
+	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	hi2c1.Init.OwnAddress1 = 0;
+	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	hi2c1.Init.OwnAddress2 = 0;
+	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN I2C2_Init 2 */
 
-  /* USER CODE END I2C2_Init 2 */
+	/* USER CODE END I2C2_Init 2 */
 
 }
 
 /**
-  * @brief RTC Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief RTC Initialization Function
+ * @param None
+ * @retval None
+ */
 
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+static void MX_GPIO_Init(void) {
+	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
-
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
+	__HAL_RCC_GPIOB_CLK_ENABLE()
+	;
 
 }
 
@@ -241,12 +269,12 @@ void init() {
 	HAL_Init();
 	MX_GPIO_Init();
 	MX_I2C2_Init();
-
-//	ssd1306_Init();
-	ssd1306_TestAll();
+	ssd1306_Init();
+//	ssd1306_TestAll();
 	cleanbuffers();
 
 	add_ui();
+	add_ui_v2();
 	fft_ws2812_Init();
 	init_button();
 }

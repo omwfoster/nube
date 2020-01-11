@@ -17,9 +17,6 @@ typedef enum menu_type {
 	WEIGHT_FOLDER, WINDOW_FOLDER ,POWER_FOLDER
 } enum_menu_type;
 
-
-
-
 typedef union func_union{
 	float32_t (*func_weight)(float32_t *, uint32_t,float32_t *);
 	float32_t (*func_window)(float32_t *, uint32_t);
@@ -46,7 +43,7 @@ typedef struct user_menu
 
 extern menu_typedef *  toplevel_menu[];
 
-void add_new_menu(typedef_func_union * funtion_pointer_list[],char * title ,enum_menu_type params);
+void add_new_menu(callback_typedef * menu_head,uint8_t array_len,char * Title, enum_menu_type param_type_ID );
 
 menu_typedef * add_menu(const char * menu_title,uint8_t index);
 
@@ -55,6 +52,9 @@ uint8_t add_callback(menu_typedef * menu, char * callback_name,
 		typedef_func_union * t_func);
 
 void next_callback(menu_typedef * current_menu);
+
+static void MX_I2C2_Init(void);
+static void MX_GPIO_Init(void);
 
 
 
