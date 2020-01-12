@@ -43,13 +43,12 @@ typedef struct user_menu
 
 extern menu_typedef *  toplevel_menu[];
 
-void add_new_menu(callback_typedef * menu_head,uint8_t array_len,char * Title, enum_menu_type param_type_ID );
+void add_new_menu(callback_typedef * menu_head,uint8_t array_len,const char * Title,const uint8_t index, enum_menu_type param_type_ID );
 
-menu_typedef * add_menu(const char * menu_title,uint8_t index);
+void add_menu(const char * menu_title,uint8_t index);
 
 
-uint8_t add_callback(menu_typedef * menu, char * callback_name,
-		typedef_func_union * t_func);
+uint8_t add_callback(menu_typedef * menu, callback_typedef * callback );
 
 void next_callback(menu_typedef * current_menu);
 

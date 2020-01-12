@@ -119,7 +119,7 @@ void TIM4_IRQHandler(void)
 extern menu_typedef * toplevel_menu[3];
 
 
-void add_ui_v2() {
+void add_ui() {
 
 	callback_typedef window_list[] = {
 			{.callback_ptr = (typedef_func_union *) &Hamming , .callback_name = "Hamming",},
@@ -128,7 +128,7 @@ void add_ui_v2() {
 			{.callback_ptr = (typedef_func_union *) &Hanning , .callback_name = "Hanning",},
 	};
 
-	add_new_menu(&window_list[0],4,"Windows",WINDOW_FOLDER);
+	add_new_menu(&window_list[0],4,"Windows",1,WINDOW_FOLDER);
 
 	callback_typedef weight_list[] = {
 			{.callback_ptr = (typedef_func_union *) &rms_weighting , .callback_name = "rms_weighting",},
@@ -137,7 +137,7 @@ void add_ui_v2() {
 			{.callback_ptr = (typedef_func_union *) &sd_weighting_2 , .callback_name = "sd_weighting_2",},
 	};
 
-	add_new_menu(&weight_list[0],4,"Weightings",WEIGHT_FOLDER);
+	add_new_menu(&weight_list[0],4,"Weightings",2,WEIGHT_FOLDER);
 
 	callback_typedef power_list[] = {
 			{.callback_ptr = (typedef_func_union *) &power_spectra , .callback_name = "power_spectra0",},
@@ -146,71 +146,15 @@ void add_ui_v2() {
 			{.callback_ptr = (typedef_func_union *) &power_spectra3  , .callback_name = "power_spectra3",},
 	};
 
-	add_new_menu(&power_list[0],4,"Power",POWER_FOLDER);
+	add_new_menu(&power_list[0],4,"Power",3,POWER_FOLDER);
 
 
-	//add_new_menu((char *) "weight", &function_list2[0], 4,
-	//		WEIGHT_FOLDER);
 }
 
-void add_ui() {
-
-	menu_typedef * m = add_menu("window", 0);
-	typedef_func_union * tf_window = malloc(sizeof(typedef_func_union));
-
-	tf_window->func_window = &Hamming;
-	add_callback(m, "hamming", tf_window);
-	tf_window = malloc(sizeof(typedef_func_union));
-	tf_window->func_window = &Blackman;
-	add_callback(m, "Blackman", tf_window);
-	tf_window = malloc(sizeof(typedef_func_union));
-	tf_window->func_window = &Kaiser;
-	add_callback(m, "Kaiser", tf_window);
-	tf_window = malloc(sizeof(typedef_func_union));
-	tf_window->func_window = &Hanning;
-	add_callback(m, "Hanning", tf_window);
-	toplevel_menu[0] = m;
-
-	m = add_menu("weight", 1);
-	typedef_func_union * tf_weight = malloc(sizeof(typedef_func_union));
-	tf_weight->func_weight = &rms_weighting;
-	add_callback(m, "rms_weighting", tf_weight);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_weight->func_weight = &rms_weighting_2;
-	add_callback(m, "rms_weighting_2", tf_weight);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_weight->func_weight = &sd_weighting;
-	add_callback(m, "sd_weighting", tf_weight);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_weight->func_weight = &sd_weighting_2;
-	add_callback(m, "sd_weighting", tf_weight);
-	toplevel_menu[1] = m;
-
-	m = add_menu("Power", 2);
-	typedef_func_union * tf_power = malloc(sizeof(typedef_func_union));
-	tf_power->func_power = &power_spectra;
-	add_callback(m, "power0", tf_power);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_power->func_power = &power_spectra1;
-	add_callback(m, "power1", tf_power);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_power->func_power = &power_spectra2;
-	add_callback(m, "power2", tf_power);
-	tf_weight = malloc(sizeof(typedef_func_union));
-	tf_power->func_power = &power_spectra3;
-	add_callback(m, "power3", tf_power);
-	toplevel_menu[2] = m;
-}
 
 static void MX_I2C2_Init(void) {
 
-	/* USER CODE BEGIN I2C2_Init 0 */
 
-	/* USER CODE END I2C2_Init 0 */
-
-	/* USER CODE BEGIN I2C2_Init 1 */
-
-	/* USER CODE END I2C2_Init 1 */
 	hi2c1.Instance = I2C1;
 	hi2c1.Init.ClockSpeed = 100000;
 	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
@@ -223,17 +167,10 @@ static void MX_I2C2_Init(void) {
 	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
 		Error_Handler();
 	}
-	/* USER CODE BEGIN I2C2_Init 2 */
-
-	/* USER CODE END I2C2_Init 2 */
 
 }
 
-/**
- * @brief RTC Initialization Function
- * @param None
- * @retval None
- */
+
 
 static void MX_GPIO_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
@@ -270,11 +207,8 @@ void init() {
 	MX_GPIO_Init();
 	MX_I2C2_Init();
 	ssd1306_Init();
-//	ssd1306_TestAll();
 	cleanbuffers();
-
 	add_ui();
-	add_ui_v2();
 	fft_ws2812_Init();
 	init_button();
 }
@@ -298,11 +232,11 @@ void main(void) {
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
 			weight =
-					toplevel_menu[1]->active_callback->callback_ptr->func_weight(
-							&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
+					toplevel_menu[1]->active_callback
+									->callback_ptr
+									->func_weight(&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
-			//	&db_output_bins[0], (FFT_LEN / 2), weight);
 					&db_output_bins[0], (FFT_LEN / 2), weight);
 			LED_Ready = generate_BB();
 		}
