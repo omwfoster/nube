@@ -9,6 +9,7 @@
 #include "omwof/omwof_menu.h"
 #include "omwof/omwof_window.h"
 #include "omwof/omwof_weight.h"
+#include "ssd1306.h"
 
 typedef enum button_state {
 	NOT_IN_USE, BUTTON_PRESSED, BUTTON_RELEASED
@@ -46,13 +47,16 @@ uint8_t TIM5_config(void)
 	return 1;
 }
 
-
 uint8_t process_event(enum_button_event evt) {
 
 	static uint8_t i = 0;
 	switch (evt) {
 	case SHORT_PRESS:
 		active_menu->active_callback = active_menu->active_callback->next_ptr;
+		ssd1306_Fill(Black);
+		ssd1306_SetCursor(2, 0);
+		ssd1306_WriteString(active_menu->active_callback->callback_name,
+				Font_16x26, White);
 		set_window();
 		break;
 	case LONG_PRESS:
@@ -62,13 +66,20 @@ uint8_t process_event(enum_button_event evt) {
 			i = 0;
 		}
 		active_menu = toplevel_menu[i];
+		ssd1306_Fill(Black);
+		ssd1306_SetCursor(2, 0);
+		ssd1306_WriteString(active_menu->folder_name, Font_16x26, White);
 		break;
 	default:
 		break;
 	}
+
+
 	HAL_TIM_Base_Stop_IT(&TIM_Handle_btn_delay); // start timer interrupts
 	__HAL_GPIO_EXTI_CLEAR_IT(KEY_BUTTON_PIN);
 	HAL_NVIC_EnableIRQ(KEY_BUTTON_EXTI_IRQn);
+
+
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
