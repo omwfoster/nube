@@ -44,7 +44,7 @@ uint8_t add_callback(menu_typedef * menu, callback_typedef * callback) {
 		return 1;
 	}
 
-	callback_typedef * current_callback = menu->active_callback;
+	callback_typedef volatile * current_callback = menu->active_callback;
 
 	while (current_callback->next_ptr != menu->active_callback) {
 		current_callback = current_callback->next_ptr; // move to end of the list

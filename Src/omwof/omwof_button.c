@@ -27,10 +27,8 @@ uint8_t init_button() {
 	BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
 	TIM5_config();
 	HAL_NVIC_EnableIRQ(KEY_BUTTON_EXTI_IRQn);
+	active_menu = toplevel_menu[0];
 
-	if (active_menu == NULL) {
-		active_menu = toplevel_menu[0];
-	}
 }
 
 TIM_HandleTypeDef TIM_Handle_btn_delay;

@@ -121,16 +121,18 @@ extern menu_typedef * toplevel_menu[3];
 
 void add_ui() {
 
-	callback_typedef window_list[] = {
+	static callback_typedef window_list[] = {
+			{.callback_ptr = (typedef_func_union)&Hanning , .callback_name = "Hanning",},
 			{.callback_ptr = (typedef_func_union)&Hamming , .callback_name = "Hamming",},
 			{.callback_ptr = (typedef_func_union)&Blackman , .callback_name = "Blackman",},
 			{.callback_ptr = (typedef_func_union)&Kaiser , .callback_name = "Kaiser",},
-			{.callback_ptr = (typedef_func_union)&Hanning , .callback_name = "Hanning",},
+			{.callback_ptr = (typedef_func_union)&Chebeyshev , .callback_name = "Chebayshev",},
+
 	};
 
 	add_new_menu(&window_list[0],4,"Windows",0,WINDOW_FOLDER);
 
-	callback_typedef weight_list[] = {
+	static callback_typedef weight_list[] = {
 			{.callback_ptr = (typedef_func_union ) &rms_weighting , .callback_name = "rms_weighting",},
 			{.callback_ptr = (typedef_func_union ) &rms_weighting_2 , .callback_name = "rms_weighting2",},
 			{.callback_ptr = (typedef_func_union ) &sd_weighting , .callback_name = "sd_weighting",},
@@ -139,7 +141,7 @@ void add_ui() {
 
 	add_new_menu(&weight_list[0],4,"Weightings",1,WEIGHT_FOLDER);
 
-	callback_typedef power_list[] = {
+	static callback_typedef power_list[] = {
 			{.callback_ptr = (typedef_func_union ) &power_spectra , .callback_name = "power_spectra0",},
 			{.callback_ptr = (typedef_func_union ) &power_spectra1  , .callback_name = "power_spectra1",},
 			{.callback_ptr = (typedef_func_union ) &power_spectra2 , .callback_name = "power_spectra2",},
@@ -209,6 +211,7 @@ void init() {
 	ssd1306_Init();
 	cleanbuffers();
 	add_ui();
+	ssd1306_TestAll();
 	fft_ws2812_Init();
 	init_button();
 }
@@ -231,8 +234,9 @@ void main(void) {
 		}
 
 		if ((FFT_Ready == 1) && (LED_Ready == 0)) {
-			weight =
-					toplevel_menu[1]->active_callback->callback_ptr.func_weight(&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
+			weight = toplevel_menu[1]
+								   ->active_callback
+								   ->callback_ptr.func_weight(&mag_output_bins[0], (FFT_LEN / 2), &st_dev);
 
 			generate_RGB(&fft_output_bins[0], &mag_output_bins[0],
 					&db_output_bins[0], (FFT_LEN / 2), weight);
@@ -279,15 +283,15 @@ void BSP_Led_init() {
 
 }
 
-extern Window_TypeDef Window_profiles[5];
 
-void set_window() {
-	toplevel_menu[0]->active_callback->callback_ptr.func_window(
-			&array_window[0], (FFT_LEN));
+
+void set_window(float32_t * array,uint32_t len) {
+	toplevel_menu[0]->active_callback->callback_ptr.func_window(array, len);
+
 }
 
 void fft_ws2812_Init() {
-	set_window();
+	set_window(&array_window[0],FFT_LEN);
 	arm_rfft_fast_init_f32(&rfft_s, FFT_LEN);
 	AUDIODataReady = 0;
 	BSP_Audio_init();

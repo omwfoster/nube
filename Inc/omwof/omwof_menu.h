@@ -19,7 +19,7 @@ typedef enum menu_type {
 
 typedef union func_union{
 	float32_t (*func_weight)(float32_t *, uint32_t,float32_t *);
-	float32_t (*func_window)(float32_t *, uint32_t);
+	void (*func_window)(float32_t *, uint32_t);
 	void (*func_power)(float32_t *,float32_t *, uint32_t);
 }typedef_func_union;
 
@@ -41,7 +41,7 @@ typedef struct user_menu
 
 }menu_typedef;
 
-extern menu_typedef *  toplevel_menu[];
+extern menu_typedef *  toplevel_menu[3];
 
 void add_new_menu(callback_typedef * menu_head,uint8_t array_len,const char * Title,const uint8_t index, enum_menu_type param_type_ID );
 

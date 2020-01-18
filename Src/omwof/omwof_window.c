@@ -7,8 +7,12 @@
 
 #include <omwof/omwof_window.h>
 
-float32_t Hanning(float32_t * output_array, uint32_t N) {
-	uint32_t half, i, idx, n;
+#define FFT_LEN 128
+
+extern float32_t hann_buff[FFT_LEN];
+
+void Hanning(float32_t * output_array, uint32_t N) {
+	static volatile uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
 
@@ -19,8 +23,8 @@ float32_t Hanning(float32_t * output_array, uint32_t N) {
 
 }
 
-float32_t Hamming(float32_t * output_array, uint32_t N) {
-	uint32_t half, i, idx, n;
+void Hamming(float32_t * output_array, uint32_t N) {
+	static volatile  uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
 
@@ -31,7 +35,7 @@ float32_t Hamming(float32_t * output_array, uint32_t N) {
 
 }
 
-float32_t Blackman(float32_t * output_array, uint32_t N) {
+void Blackman(float32_t * output_array, uint32_t N) {
 	uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
@@ -44,7 +48,7 @@ float32_t Blackman(float32_t * output_array, uint32_t N) {
 
 }
 
-float32_t Kaiser(float32_t * output_array, uint32_t N) {
+void Kaiser(float32_t * output_array, uint32_t N) {
 	uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
@@ -56,7 +60,7 @@ float32_t Kaiser(float32_t * output_array, uint32_t N) {
 
 }
 
-float32_t Chebeyshev(float32_t * output_array, uint32_t N) {
+void Chebeyshev(float32_t * output_array, uint32_t N) {
 	uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
@@ -68,9 +72,7 @@ float32_t Chebeyshev(float32_t * output_array, uint32_t N) {
 
 }
 
-Window_TypeDef Window_profiles[5] = { { &Hanning, "Hanning", 0U }, { &Hamming,
-		"Hamming", 1U }, { &Blackman, "Blackman", 2U }, { Chebeyshev,
-		"Chebeyshev", 3U }, { &Kaiser, "Kaiser", 4U }, };
+
 
 uint8_t window_init() {
 
