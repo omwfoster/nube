@@ -26,5 +26,7 @@ void power_spectra2(float32_t * input_bins, float32_t * power_spectra,
 		uint32_t number_of_bins);
 void power_spectra3(float32_t * input_bins, float32_t * power_spectra,
 		uint32_t number_of_bins);
+void power_spectra4(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins);
 
 #endif /* OMWOF_OMWOF_DB_H_ */

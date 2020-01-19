@@ -121,6 +121,26 @@ extern menu_typedef * toplevel_menu[3];
 
 void add_ui() {
 
+	static callback_typedef power_list[] = {
+			{.callback_ptr = (typedef_func_union ) &power_spectra , .callback_name = "power1",},
+			{.callback_ptr = (typedef_func_union ) &power_spectra1  , .callback_name = "power2",},
+			{.callback_ptr = (typedef_func_union ) &power_spectra2 , .callback_name = "power3",},
+			{.callback_ptr = (typedef_func_union ) &power_spectra3  , .callback_name = "power4",},
+			{.callback_ptr = (typedef_func_union ) &power_spectra4  , .callback_name = "power5",},
+
+	};
+
+	add_new_menu(&power_list[0],5,"Powers",0,POWER_FOLDER);
+
+	static callback_typedef weight_list[] = {
+			{.callback_ptr = (typedef_func_union ) &rms_weighting , .callback_name = "bad_rms_1",},
+			{.callback_ptr = (typedef_func_union ) &rms_weighting_2 , .callback_name = "good_rms_2",},
+			{.callback_ptr = (typedef_func_union ) &sd_weighting , .callback_name = "sd_1",},
+			{.callback_ptr = (typedef_func_union ) &sd_weighting_2 , .callback_name = "sd_2",},
+		};
+
+		add_new_menu(&weight_list[0],4,"Weights",1,WEIGHT_FOLDER);
+
 	static callback_typedef window_list[] = {
 			{.callback_ptr = (typedef_func_union)&Hanning , .callback_name = "Hanning",},
 			{.callback_ptr = (typedef_func_union)&Hamming , .callback_name = "Hamming",},
@@ -130,25 +150,11 @@ void add_ui() {
 
 	};
 
-	add_new_menu(&window_list[0],4,"Windows",0,WINDOW_FOLDER);
+	add_new_menu(&window_list[0],5,"Windows",2,WINDOW_FOLDER);
 
-	static callback_typedef weight_list[] = {
-			{.callback_ptr = (typedef_func_union ) &rms_weighting , .callback_name = "rms_weighting",},
-			{.callback_ptr = (typedef_func_union ) &rms_weighting_2 , .callback_name = "rms_weighting2",},
-			{.callback_ptr = (typedef_func_union ) &sd_weighting , .callback_name = "sd_weighting",},
-			{.callback_ptr = (typedef_func_union ) &sd_weighting_2 , .callback_name = "sd_weighting_2",},
-	};
 
-	add_new_menu(&weight_list[0],4,"Weightings",1,WEIGHT_FOLDER);
 
-	static callback_typedef power_list[] = {
-			{.callback_ptr = (typedef_func_union ) &power_spectra , .callback_name = "power_spectra0",},
-			{.callback_ptr = (typedef_func_union ) &power_spectra1  , .callback_name = "power_spectra1",},
-			{.callback_ptr = (typedef_func_union ) &power_spectra2 , .callback_name = "power_spectra2",},
-			{.callback_ptr = (typedef_func_union ) &power_spectra3  , .callback_name = "power_spectra3",},
-	};
 
-	add_new_menu(&power_list[0],4,"Power",2,POWER_FOLDER);
 
 
 }
@@ -286,7 +292,7 @@ void BSP_Led_init() {
 
 
 void set_window() {
-	toplevel_menu[0]->active_callback->callback_ptr.func_window(&array_window[0], FFT_LEN);
+	toplevel_menu[2]->active_callback->callback_ptr.func_window(&array_window[0], FFT_LEN);
 
 }
 
@@ -305,7 +311,7 @@ uint8_t StartRFFTTask() {
 
 	arm_rfft_fast_f32(&rfft_s, &fft_input_array[0], &fft_output_bins[0], 0);
 	arm_cmplx_mag_f32(&fft_output_bins[0], &mag_output_bins[0], (FFT_LEN / 2));
-	toplevel_menu[2]->active_callback->callback_ptr.func_power(
+	toplevel_menu[0]->active_callback->callback_ptr.func_power(
 			&mag_output_bins[0], &db_output_bins[0], (FFT_LEN / 2));
 	arm_fill_f32(0.0f, &fft_input_array[0], FFT_LEN);
 	FFT_Ready = 1;

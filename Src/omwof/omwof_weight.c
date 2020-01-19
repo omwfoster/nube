@@ -16,12 +16,11 @@
 #include <omwof/omwof_weight.h>
 
 float32_t rms_array[5];
-float32_t rms_max = 0.0f;
+
 float32_t sd_max = 0.0f;
 float32_t sd_min = 60000.0f;
-float32_t rms_min = 60000.0f;
+
 volatile float32_t weight;
-static uint8_t counter = 0;
 static float32_t rolling_avg;
 static float32_t sd_dev;
 
@@ -34,26 +33,22 @@ Weight_TypeDef Weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
 		rms_weighting_2, "rms_1", 2 }, { sd_weighting, "sd__1", 1 }, {
 		sd_weighting_2, "sd__2", 3 }, };
 
-void clean_weight() {
 
-	rms_max = 0.0f;
-	sd_max = 0.0f;
-	sd_min = 60000.0f;
-	rms_min = 60000.0f;
-}
 
 // estimate dc component from *input_array[0] bin
 float32_t rms_weighting(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	float32_t pResult;
-	uint32_t pIndex;
-	arm_std_f32(input_array, array_length, &sd_dev);
+	static volatile uint8_t counter = 0;
+	static float32_t rolling_avg = 0;
+	static volatile float32_t rms_max = 0.0f;
+	static volatile float32_t rms_min = 60000.0f;
 
 	arm_rms_f32(input_array, array_length, &rms_array[counter]);
 	rms_max = (rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
 	rms_min = (rms_min < rms_array[counter]) ? rms_min : rms_array[counter];
-	weight = (rms_array[counter] - *input_array) / (rms_max - *input_array);
+	arm_mean_f32(&rms_array[0], 5, &rolling_avg);
+	weight = (rolling_avg - rms_min) / (rms_max - rms_min);
 	(counter < 4) ? ++counter : 0;
 	*st_dev = 1;
 	return weight;
@@ -65,9 +60,10 @@ float32_t rms_weighting(float32_t * input_array, uint32_t array_length,
 float32_t rms_weighting_2(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	float32_t pResult;
-	uint32_t pIndex;
-	arm_std_f32(input_array, array_length, st_dev);
+	static volatile uint8_t counter = 0;
+	static float32_t rolling_avg = 0;
+	static volatile float32_t rms_max = 0.0f;
+	static volatile float32_t rms_min = 60000.0f;
 
 	arm_rms_f32(input_array, array_length, &rms_array[counter]);
 	rms_max = (rms_max > rms_array[counter]) ? rms_max : rms_array[counter];
@@ -81,6 +77,11 @@ float32_t rms_weighting_2(float32_t * input_array, uint32_t array_length,
 
 float32_t sd_weighting(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
+
+	static volatile uint8_t counter = 0;
+	static float32_t rolling_avg = 0;
+	static volatile float32_t rms_max = 0.0f;
+	static volatile float32_t rms_min = 60000.0f;
 
 	float32_t sd_weight;
 	float32_t pResult;
@@ -101,6 +102,10 @@ float32_t sd_weighting(float32_t * input_array, uint32_t array_length,
 float32_t sd_weighting_2(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
+	static volatile uint8_t counter = 0;
+	static float32_t rolling_avg = 0;
+	static volatile float32_t rms_max = 0.0f;
+	static volatile float32_t rms_min = 60000.0f;
 	float32_t sd_weight;
 	float32_t pResult;
 	float32_t sd_samples;

@@ -52,9 +52,9 @@ uint8_t process_event(enum_button_event evt) {
 	case SHORT_PRESS:
 		next_callback(active_menu);
 		ssd1306_Fill(Black);
-		ssd1306_SetCursor(2, 0);
+		ssd1306_SetCursor(2, 2);
 		ssd1306_WriteString(active_menu->active_callback->callback_name,
-				Font_16x26, White);
+				Font_11x18, White);
 		ssd1306_UpdateScreen();
 		set_window();
 		break;
@@ -66,8 +66,8 @@ uint8_t process_event(enum_button_event evt) {
 		}
 		active_menu = toplevel_menu[i];
 		ssd1306_Fill(Black);
-		ssd1306_SetCursor(2, 0);
-		ssd1306_WriteString(active_menu->folder_name, Font_16x26, White);
+		ssd1306_SetCursor(2, 2);
+		ssd1306_WriteString(active_menu->folder_name, Font_11x18, White);
 		ssd1306_UpdateScreen();
 		break;
 	default:

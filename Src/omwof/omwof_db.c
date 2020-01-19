@@ -107,6 +107,18 @@ void square_bins(float32_t * input_bins,
 
 }
 
+void cube_bins(float32_t * input_bins,
+		uint32_t number_of_bins)
+{
+	static uint32_t i = 0;
+	for(i = 0;i < number_of_bins;i ++)
+	{
+	*input_bins = pow(*input_bins,3);
+	++i;
+	}
+
+}
+
 void power_spectra(float32_t * input_bins, float32_t * power_spectra,
 		uint32_t number_of_bins) {
 
@@ -135,5 +147,15 @@ void power_spectra3(float32_t * input_bins, float32_t * power_spectra,
 
 	mag2db(input_bins, power_spectra, number_of_bins);
 	shift_db_to_100(power_spectra, number_of_bins);
+	normalize_db(power_spectra, number_of_bins);
+	cube_bins(power_spectra, number_of_bins);
+}
+
+void power_spectra4(float32_t * input_bins, float32_t * power_spectra,
+		uint32_t number_of_bins) {
+
+	mag2db(input_bins, power_spectra, number_of_bins);
+	shift_db_to_100(power_spectra, number_of_bins);
+	cube_bins(power_spectra, number_of_bins);
 	normalize_db(power_spectra, number_of_bins);
 }
