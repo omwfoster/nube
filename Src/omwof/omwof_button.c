@@ -50,11 +50,12 @@ uint8_t process_event(enum_button_event evt) {
 	static uint8_t i = 0;
 	switch (evt) {
 	case SHORT_PRESS:
-		active_menu->active_callback = active_menu->active_callback->next_ptr;
+		next_callback(active_menu);
 		ssd1306_Fill(Black);
 		ssd1306_SetCursor(2, 0);
 		ssd1306_WriteString(active_menu->active_callback->callback_name,
 				Font_16x26, White);
+		ssd1306_UpdateScreen();
 		set_window();
 		break;
 	case LONG_PRESS:
@@ -67,6 +68,7 @@ uint8_t process_event(enum_button_event evt) {
 		ssd1306_Fill(Black);
 		ssd1306_SetCursor(2, 0);
 		ssd1306_WriteString(active_menu->folder_name, Font_16x26, White);
+		ssd1306_UpdateScreen();
 		break;
 	default:
 		break;

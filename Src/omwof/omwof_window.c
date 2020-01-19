@@ -36,7 +36,7 @@ void Hamming(float32_t * output_array, uint32_t N) {
 }
 
 void Blackman(float32_t * output_array, uint32_t N) {
-	uint32_t half, i, idx, n;
+	static volatile uint32_t half, i, idx, n;
 
 	arm_fill_f32(0.0f, output_array, N);
 

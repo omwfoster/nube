@@ -59,7 +59,7 @@ uint8_t add_callback(menu_typedef * menu, callback_typedef * callback) {
 void next_callback(menu_typedef * current_menu) {
 
 	if (current_menu) {
-		current_menu->active_callback = current_menu->active_callback->next_ptr;
+		current_menu->active_callback =  current_menu->active_callback->next_ptr;
 	}
 }
 

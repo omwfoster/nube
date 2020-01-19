@@ -211,7 +211,7 @@ void init() {
 	ssd1306_Init();
 	cleanbuffers();
 	add_ui();
-	ssd1306_TestAll();
+	//ssd1306_TestAll();
 	fft_ws2812_Init();
 	init_button();
 }
@@ -285,8 +285,8 @@ void BSP_Led_init() {
 
 
 
-void set_window(float32_t * array,uint32_t len) {
-	toplevel_menu[0]->active_callback->callback_ptr.func_window(array, len);
+void set_window() {
+	toplevel_menu[0]->active_callback->callback_ptr.func_window(&array_window[0], FFT_LEN);
 
 }
 
