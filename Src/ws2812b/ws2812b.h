@@ -12,7 +12,7 @@
 #define WS2812B_PINS (GPIO_PIN_0)
 
 // How many LEDs are in the series - only valid multiples by two
-#define WS2812B_NUMBER_OF_LEDS 64
+#define WS2812B_NUMBER_OF_LEDS 512
 
 
 #define WS2812_BUFFER_COUNT 1

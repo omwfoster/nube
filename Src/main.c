@@ -3,7 +3,7 @@
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_audio.h"
 
-//I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
 #include "visEffect.h"
@@ -50,7 +50,7 @@ static bool peq1_abFlag = false;
 static const arm_biquad_casd_df1_inst_f32 peq1_instanceA = { 1, peq1_state,
 		peq1_coeffsA };
 
-static const uint16_t SAMPLE_RUNS = 8; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
+static const uint16_t SAMPLE_RUNS = 32; //(INTERNAL_BUFF_SIZE / PCM_OUT_SIZE);
 
 float32_t fft_input_array[FFT_LEN]; //
 float32_t fft_temp_array[FFT_LEN]; //
@@ -89,7 +89,7 @@ uint8_t TIM4_config(void)
 {
 	__TIM4_CLK_ENABLE()
 	;
-	TIM_Handle.Init.Prescaler = 10;
+	TIM_Handle.Init.Prescaler = 100;
 	TIM_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
 	TIM_Handle.Init.Period = 16000;
 	TIM_Handle.Instance = TIM4;   //Same timer whose clocks we enabled

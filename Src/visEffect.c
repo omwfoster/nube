@@ -78,7 +78,12 @@ void visInit() {
 }
 
 
-
+float32_t hue_from_mag(float32_t *  _mag,float32_t * _real)
+{
+	static float32_t _hue;
+	_hue = (atan(*(_mag) / *(_real))) * (180.0 / PI);
+	return _hue ;
+}
 
 // Process FFT and populate idle buffer
 
@@ -86,15 +91,15 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t
 
 	static WS2812_BufferItem * ws_item_ptr;
 	static ws_buf_state bs = WS_NOT_IN_USE;
-	volatile float32_t * _Real = fft;
-	volatile float32_t * _mag = mag;
-	volatile float32_t dc_comp = *fft;
-	uint32_t mag_max_i;
-	float32_t mag_max;
+	float32_t * _real = fft;
+	float32_t * _img = fft+1;
+	float32_t * _mag = mag;
+
 	hsv hsv_struct;
 	volatile rgb rgb_struct;
 	static volatile uint8_t * u_ptr;
 	ws_item_ptr = ws2812b_getBufferItem(bs);
+	static float32_t rolling_avg_hue[] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,};
 
 	if (ws_item_ptr == NULL) {
 		return 0;
@@ -105,17 +110,19 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t
 
 
 
-	for (uint16_t i = 1; i < array_len; ++i) { ///  hard-coded buffer size need runtime evaluation
-	//	volatile float32_t v_temp =  *(_mag)/ (mag_max);
+	for (uint16_t i = 1; i < array_len; ++i) {
+
 		if (*_db > 0.4f) {
-			hsv_struct.h = (atan(*(_mag) / *(_Real))) * (180.0 / PI);
+			hsv_struct.h = hue_from_mag(_mag,_real);
 
 
-			hsv_struct.s = (abs(*(_Real)) / *(_mag));
+			hsv_struct.s = (abs(*(_real)) / (abs(*(_img))));
 			hsv_struct.v = * _db * weight;
-			_Real += 2;
+			_real += 2;
+			_img  += 2;
 			_mag++;
 			_db++;
+
 			rgb_struct = HSV2RGB(hsv_struct);
 
 			*u_ptr = (uint8_t) (rgb_struct.r * 100) ;
@@ -132,7 +139,7 @@ uint8_t generate_RGB(float32_t * fft, float32_t * mag,float32_t *  _db, uint32_t
 			++u_ptr;
 			*u_ptr = 0;
 			++u_ptr;
-			_Real += 2;
+			_real += 2;
 			_mag++;
 			_db++;
 		}

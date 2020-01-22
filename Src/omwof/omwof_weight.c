@@ -39,7 +39,7 @@ Weight_TypeDef Weight_profiles[] = { { rms_weighting, "rms_1", 0 }, {
 float32_t rms_weighting(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	static volatile uint8_t counter = 0;
+	static volatile uint32_t counter = 0;
 	static float32_t rolling_avg = 0;
 	static volatile float32_t rms_max = 0.0f;
 	static volatile float32_t rms_min = 60000.0f;
@@ -60,7 +60,7 @@ float32_t rms_weighting(float32_t * input_array, uint32_t array_length,
 float32_t rms_weighting_2(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	static volatile uint8_t counter = 0;
+	static volatile uint32_t counter = 0;
 	static float32_t rolling_avg = 0;
 	static volatile float32_t rms_max = 0.0f;
 	static volatile float32_t rms_min = 60000.0f;
@@ -78,7 +78,7 @@ float32_t rms_weighting_2(float32_t * input_array, uint32_t array_length,
 float32_t sd_weighting(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	static volatile uint8_t counter = 0;
+	static volatile uint32_t counter = 0;
 	static float32_t rolling_avg = 0;
 	static volatile float32_t rms_max = 0.0f;
 	static volatile float32_t rms_min = 60000.0f;
@@ -102,7 +102,7 @@ float32_t sd_weighting(float32_t * input_array, uint32_t array_length,
 float32_t sd_weighting_2(float32_t * input_array, uint32_t array_length,
 		float32_t * st_dev) {
 
-	static volatile uint8_t counter = 0;
+	static volatile uint32_t counter = 0;
 	static float32_t rolling_avg = 0;
 	static volatile float32_t rms_max = 0.0f;
 	static volatile float32_t rms_min = 60000.0f;
