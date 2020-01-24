@@ -10,7 +10,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 #include <arm_math.h>
-#include "../Src/ws2812b/ws2812b.h"
+#include "ws2812b.h"
 
 extern WS2812_BufferItem * getBufferItem(uint8_t status);
 extern uint8_t frame_Buffer[];

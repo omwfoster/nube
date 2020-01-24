@@ -149,19 +149,11 @@ void add_ui() {
 			{.callback_ptr = (typedef_func_union)&Chebeyshev , .callback_name = "Chebayshev",},
 
 	};
-
 	add_new_menu(&window_list[0],5,"Windows",2,WINDOW_FOLDER);
-
-
-
-
-
-
 }
 
 
 static void MX_I2C2_Init(void) {
-
 
 	hi2c1.Instance = I2C1;
 	hi2c1.Init.ClockSpeed = 100000;
@@ -175,17 +167,14 @@ static void MX_I2C2_Init(void) {
 	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
 		Error_Handler();
 	}
-
 }
 
 
 
 static void MX_GPIO_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
-
 	__HAL_RCC_GPIOB_CLK_ENABLE()
 	;
-
 }
 
 /* You can connect I2C1 to two different
@@ -378,27 +367,10 @@ void I2S2_IRQHandler(void) {
 	HAL_DMA_IRQHandler(hAudioInI2s.hdmarx);
 }
 
-volatile uint32_t i = 4; // start at first useful value. wavelength = 4samples -- 00 -- up -- 00 -- down
-void test_loop2() {
 
-	if (i <= FFT_LEN) {
-		sine_sample(&fft_input_array[0], FFT_LEN, i, 0); //  calculate sine values for a wave run
-		i *= 2; 								//  multiply by 2 for next run
-	} else {
-		i = 4;		//  restart sequence if the sequence were to overflow the
-					//	overall sample length
-	}
-
-	AUDIODataReady = 1;
-}
 
 void cleanbuffers() {
 
-#ifndef OUTPUT_TEST
-
-	arm_fill_f32(0.0f, fft_input_array, FFT_LEN);
-
-#endif
 
 	arm_fill_f32(0.0f, fft_output_bins, FFT_LEN);
 	arm_fill_f32(0.0f, mag_output_bins, FFT_LEN / 2);
