@@ -45,7 +45,7 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Common/accelero.h"
+#include "accelero.h"
 
 /** @addtogroup BSP
   * @{
