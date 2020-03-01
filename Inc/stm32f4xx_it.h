@@ -48,7 +48,7 @@
 /* Exported functions ------------------------------------------------------- */
 
 void SysTick_Handler(void);
-void OTG_FS_IRQHandler(void);
+
 
 #ifdef __cplusplus
 }

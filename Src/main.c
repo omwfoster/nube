@@ -203,6 +203,7 @@ void init() {
 	HAL_Init();
 	MX_GPIO_Init();
 	MX_I2C2_Init();
+	BSP_Audio_init();
 	ssd1306_Init();
 	cleanbuffers();
 	add_ui();
